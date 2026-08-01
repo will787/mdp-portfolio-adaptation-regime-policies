@@ -2,6 +2,7 @@ import numpy as np
 import sys
 from src.engine.strategy import executar_strategy
 from src.engine.benchmark import benchmark_hibrido
+from src.engine.brain import MarketBrain
 
 
 
@@ -16,7 +17,7 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
     X_teste_cru = df_features_teste.loc[df_teste_acoes.index, colunas_hmm].values
 
     carteira_atual, carteira_pendente = carteira_inicial, carteira_pendente_inicial #somente pra primeira janela
-    dias_restantes, dias_holding = 0, tempo_regime
+    dias_restantes, dias_holding = 0, 21
     prob_suavizada = None
     logs_diarios = []
     logs_backtest = []
@@ -27,6 +28,7 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
     for i in range(1, len(df_teste_acoes)):
 
         data_atual = df_teste_acoes.index[i]
+
 
         X_scaled_ontem = brain.scaler.transform(X_teste_cru[i - 1].reshape(1, -1)).flatten()
         historico_x.append(X_scaled_ontem)

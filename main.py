@@ -36,10 +36,9 @@ BASE_DIR = try_read_dir()
 
 features = [
         'ibovespa_br_returns', 'ibovespa_br_volatily', 'ibovespa_br_momentum', 'ibovespa_br_zscore',
-        'vix_zscore', 'petro_brent_zscore', 'taxa_selic_zscore', 'risco_brasil_zscore',  'meta_taxa_selic_zscore',
-        ''
-        's&p500_eua_returns', 'shanghai_china_returns',  'inflacao_mensal_pct_change_lag_1m',
-        'dolar_cambio_livre_p_tax_zscore', 'euro_cambio_livre_zscore', 'iene_cambio_livre_zscore'
+        'vix_zscore', 'petro_brent_zscore', 'taxa_selic_zscore', 'risco_brasil_zscore',  #'meta_taxa_selic_zscore',
+        'shanghai_china_returns',  'inflacao_mensal_pct_change_lag_1m'
+        #'dolar_cambio_livre_p_tax_zscore', 'euro_cambio_livre_zscore', 'iene_cambio_livre_zscore'
 ]
 
 arquivo = BASE_DIR / 'data/gold/macro_features_hmm.parquet'
@@ -60,12 +59,10 @@ tickers = [
     'CYRE3.SA','MRVE3.SA','EZTC3.SA', 'JBSS3.SA','BRFS3.SA','MRFG3.SA',
     'IRBR3.SA','COGN3.SA','OIBR3.SA','GOLL4.SA', 'LJQQ3.SA', 'ANIM3.SA', 'AZUL4.SA',
     'KEPL3.SA', 'FRAS3.SA', 'ROMI3.SA', 'UNIP6.SA', 'CSUD3.SA', 'CVCB3.SA', 'VIIA3.SA',
-    'B3SA3.SA','RENT3.SA','MOVI3.SA','SLCE3.SA','SMTO3.SA','CMIN3.SA','YDUQ3.SA','CPLE6.SA','BRKM5.SA','LWSA3.SA'
-    ,'GOLL4.SA', 'ENBR3.SA', 'ALUP11.SA', 'CSMG3.SA', 'BRAP4.SA', 'AGRO3.SA', 'BPAN4.SA', 'SOJA3.SA',
+    'B3SA3.SA','RENT3.SA','MOVI3.SA','SLCE3.SA','SMTO3.SA','CMIN3.SA','YDUQ3.SA','CPLE6.SA','BRKM5.SA','LWSA3.SA',
+    'GOLL4.SA', 'ENBR3.SA', 'ALUP11.SA', 'CSMG3.SA', 'BRAP4.SA', 'AGRO3.SA', 'BPAN4.SA', 'SOJA3.SA',
     'CPLE3.SA', 'TRPL4.SA', 'IGTI11.SA', 'ARZZ3.SA', 'LIGT3.SA',
-
-    'GOAU4.SA','ELET3.SA','ELET6.SA','ISAE4.SA',
-
+    'GOAU4.SA','ELET3.SA','ELET6.SA','ISAE4.SA'
 ]
 
 tickers_unicos = list(dict.fromkeys(tickers))
@@ -83,11 +80,11 @@ df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forw
     acoes_disponiveis=ativos_risco, 
     colunas_hmm=df_features.columns, 
     colunas_operacao=colunas_operacao,
-    ano_inicio_operacao=2006, 
+    ano_inicio_operacao=2010, 
     janela_teste=1, 
     metrica_otimizacao='adaptativo',
     anos_memoria_treino=5, 
-    tempo_regime=21, 
+    tempo_regime=22, 
     limite_max_por_ativo=0.08,
     custo_corretagem=0.0005,             
     custo_slippage=0.001,              
@@ -104,7 +101,15 @@ vis.analise_atribuicao_alpha(df_resultado)
 vis.plot_evolucao_alocacao(df_resultado)
 vis.plot_retorno_anual_comparativo(df_resultado)
 vis.plot_dashboard_rodadas(df_rodadas)
+
+df_resultado.to_csv('df_resultados.csv')
+df_rodadas.to_csv('df_rodadas.csv')
+df_recompensas.to_csv('df_recompensas.csv')
+df_carteiras.to_csv('df_carteiras.csv')
+df_pesos.to_csv('df_pesos.csv')
 # %%
+import pandas as pd
+import numpy as np
 df_resultado.index = pd.to_datetime(df_resultado.index)
 df_resultado = df_resultado.sort_index()
 

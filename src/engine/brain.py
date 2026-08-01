@@ -68,9 +68,9 @@ class MarketBrain:
         estado_treino = [self.mapa_risco[s] for s in self.modelo.predict(self.X_treino_scaled)]
         df_treino_acoes = df_treino_acoes.assign(Estado_HMM=estado_treino)
 
-
         self.carteiras, nomes_carteiras = criar_carteiras_por_regime(
-            df_treino_acoes, self.estados_possiveis, ativos_vivos, ativos_risco, colunas_operacao, tempo_regime, metrica_otimizacao, limite_max_por_ativo
+            df_treino_acoes, self.estados_possiveis, ativos_vivos, ativos_risco, 
+            colunas_operacao, tempo_regime, metrica_otimizacao, limite_max_por_ativo
         )
 
         self.recompensas, self.metricas_recompensa = calcular_metricas_bellman(
