@@ -1,0 +1,242 @@
+{
+    "meta_taxa_selic": {
+        "source": "bacen",
+        "frequency": "daily",
+        "transformations": ["z_score"],
+        "feature_type": "macro",
+        "resample_method": null,
+        "fill_method": "ffill",
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "taxa_selic": {
+        "source": "bacen",
+        "frequency": "daily",
+        "transformations": ["z_score"],
+        "feature_type": "macro",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "dolar_cambio_livre_p_tax": {
+        "source": "bacen",
+        "frequency": "daily",
+        "transformations": ["z_score"],
+        "feature_type": "market",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "euro_cambio_livre": {
+        "source": "bacen",
+        "frequency": "daily",
+        "transformations": ["z_score"],
+        "feature_type": "market",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "iene_cambio_livre": {
+        "source": "bacen",
+        "frequency": "daily",
+        "transformations": ["z_score"],
+        "feature_type": "market",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "pib_mensal": {
+        "source": "ipea",
+        "frequency": "monthly",
+        "transformations": ["pct_change"],
+        "feature_type": "macro",
+        "resample_method": "last",
+        "fill_method": "ffill",
+        "lag": 2,
+        "lag_type": "month",
+        "note": "Ajustado para 2 meses pelo atraso cronico da IPEA/IBGE."
+    },
+    
+    "inflacao_mensal": {
+        "source": "ipea",
+        "frequency": "monthly",
+        "feature_type": "macro",
+        "transformations": ["pct_change"],
+        "resample_method": "last",
+        "fill_method": "ffill",
+        "lag": 1,
+        "lag_type": "month"
+    },
+
+    "desemprego_mensal": {
+        "source": "ipea",
+        "frequency": "monthly",
+        "feature_type": "macro",
+        "transformations": ["pct_change"],
+        "resample_method": "last",
+        "fill_method": "ffill",
+        "lag": 2,
+        "lag_type": "month",
+        "note": "Ajustando para 2 meses pelo atraso cronico da PNAD."
+    },
+
+    "risco_brasil": {
+        "source": "risco_brasil",
+        "frequency": "daily",
+        "feature_type": "market",
+        "transformations": ["z_score", "pct_change"],
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "ibovespa_br": {
+        "source": "markets",
+        "frequency": "daily",
+        "feature_type": "market",
+        "transformations": ["volatily", "returns", "momentum", "z_score", "vol_regime", "pct_change"],
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "s&p500_eua": {
+        "source": "markets",
+        "transformations": ["volatily", "returns", "momentum", "z_score", "vol_regime", "pct_change"],
+        "frequency": "daily",
+        "feature_type": "market",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "dax_alemanha": {
+        "source": "markets",
+        "frequency": "daily",
+        "transformations": ["volatily", "returns", "momentum", "z_score", "vol_regime", "pct_change"],
+        "feature_type": "market",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "shanghai_china": {
+        "source": "markets",
+        "frequency": "daily",
+        "transformations": ["volatily", "returns", "momentum", "z_score", "vol_regime", "pct_change"],
+        "feature_type": "market",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "nikkei_japao": {
+        "source": "markets",
+        "transformations": ["volatily", "returns", "momentum", "z_score", "vol_regime", "pct_change"],
+        "frequency": "daily",
+        "feature_type": "market",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+    "merv_argentina": {
+        "source": "markets",
+        "frequency": "daily",
+        "transformations": ["volatily", "returns", "momentum", "z_score", "vol_regime", "pct_change"],
+        "feature_type": "market",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+    "ftse_uk": {
+        "source": "markets",
+        "frequency": "daily",
+        "transformations": ["volatily", "returns", "momentum", "z_score", "vol_regime", "pct_change"],
+        "feature_type": "market",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+    "vix": {
+        "source": "markets",
+        "frequency": "daily",
+        "transformations": ["z_score","pct_change"],
+        "feature_type": "market",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "petro_brent": {
+        "source": "markets",
+        "frequency": "daily",
+        "transformations": ["z_score","pct_change"],
+        "feature_type": "market",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "tesouro_eua10y": {
+        "source": "markets",
+        "frequency": "daily",
+        "feature_type": "market",
+        "transformations": ["z_score","pct_change"],
+        "resample_method": "last",
+        "fill_method": "ffill",
+        "lag":1,
+        "lag_type": "business_day"
+    },
+
+    "gas_natural_commodity":{
+        "source": "markets",
+        "frequency": "daily",
+        "feature_type": "market",
+        "transformations": ["z_score","pct_change"],
+        "resample_method": "last",
+        "fill_method": "ffill",
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "milho_commodity":{
+        "source": "markets",
+        "frequency": "daily",
+        "feature_type": "market",
+        "transformations": ["z_score","pct_change"],
+        "resample_method": "last",
+        "fill_method": "ffill",
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
+    "acucar_commodity":{
+        "source": "markets",
+        "frequency": "daily",
+        "feature_type": "market",
+        "transformations": ["z_score","pct_change"],
+        "resample_method": "last",
+        "fill_method": "ffill",
+        "lag": 1,
+        "lag_type": "business_day"
+    }
+}
