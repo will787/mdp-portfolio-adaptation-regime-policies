@@ -28,7 +28,6 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
     ano_fim_dados = int(df_features.index.year.max() - 1) #caso quisermos ate 2025 só subtrair 1
 
 
-
     for ano_teste_inicio in range(ano_inicio_operacao, ano_fim_dados + 1, janela_teste):
         ano_teste_fim = ano_teste_inicio + (janela_teste - 1)
 

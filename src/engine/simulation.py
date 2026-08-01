@@ -17,7 +17,7 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
     X_teste_cru = df_features_teste.loc[df_teste_acoes.index, colunas_hmm].values
 
     carteira_atual, carteira_pendente = carteira_inicial, carteira_pendente_inicial #somente pra primeira janela
-    dias_restantes, dias_holding = 0, 21
+    dias_restantes, dias_holding = 0, tempo_regime
     prob_suavizada = None
     logs_diarios = []
     logs_backtest = []

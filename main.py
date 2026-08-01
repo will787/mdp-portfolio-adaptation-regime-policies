@@ -36,9 +36,9 @@ BASE_DIR = try_read_dir()
 
 features = [
         'ibovespa_br_returns', 'ibovespa_br_volatily', 'ibovespa_br_momentum', 'ibovespa_br_zscore',
-        'vix_zscore', 'petro_brent_zscore', 'taxa_selic_zscore', 'risco_brasil_zscore',  #'meta_taxa_selic_zscore',
-        'shanghai_china_returns',  'inflacao_mensal_pct_change_lag_1m'
-        #'dolar_cambio_livre_p_tax_zscore', 'euro_cambio_livre_zscore', 'iene_cambio_livre_zscore'
+        'vix_zscore', 'petro_brent_zscore', 'taxa_selic_zscore', 'risco_brasil_zscore',
+        'shanghai_china_returns',  'inflacao_mensal_pct_change_lag_1m',
+        'dolar_cambio_livre_p_tax_zscore', 'euro_cambio_livre_zscore'
 ]
 
 arquivo = BASE_DIR / 'data/gold/macro_features_hmm.parquet'
@@ -73,6 +73,8 @@ df_features = df_features.loc[datas_comuns].sort_index()
 retornos_sinal = retornos_sinal.loc[datas_comuns].sort_index()
 retornos_execucao = retornos_execucao.loc[datas_comuns].sort_index()
 
+# %%
+
 df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forward_motor(
     df_features=df_features, 
     retornos_sinal=retornos_sinal,         # Usado no Treino / HMM / Bellman / Scores
@@ -83,16 +85,14 @@ df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forw
     ano_inicio_operacao=2010, 
     janela_teste=1, 
     metrica_otimizacao='adaptativo',
-    anos_memoria_treino=5, 
+    anos_memoria_treino=3, 
     tempo_regime=22, 
-    limite_max_por_ativo=0.08,
-    custo_corretagem=0.0005,             
-    custo_slippage=0.001,              
+    limite_max_por_ativo=0.10,
+    custo_corretagem=0.005,             
+    custo_slippage=0.003,              
     capital_inicial=100000
 )
-
 # %%
-
 vis.plot_full_history(df_resultado, ano_inicio=2010)
 vis.plot_regimes_historicos(df_resultado)
 vis.plot_heatmap_alpha_mensal(df_resultado)
@@ -107,47 +107,161 @@ df_rodadas.to_csv('df_rodadas.csv')
 df_recompensas.to_csv('df_recompensas.csv')
 df_carteiras.to_csv('df_carteiras.csv')
 df_pesos.to_csv('df_pesos.csv')
+
+# %%
+
+import pandas as pd
+import numpy as np
+
+def calcular_drawdown_durations(serie_patrimonio):
+    # Encontra o pico acumulado (máximas históricas)
+    picos = serie_patrimonio.cummax()
+    
+    # Cria uma máscara booleana: True se estiver em drawdown, False se bateu nova máxima
+    em_drawdown = serie_patrimonio < picos
+    
+    # Calcula a duração de cada período de drawdown em dias úteis
+    duracoes = []
+    duracao_atual = 0
+    
+    for flag in em_drawdown:
+        if flag:
+            duracao_atual += 1
+        else:
+            if duracao_atual > 0:
+                duracoes.append(duracao_atual)
+            duracao_atual = 0
+            
+    # Se o backtest terminou enquanto o fundo ainda estava em drawdown:
+    if duracao_atual > 0:
+        duracoes.append(duracao_atual)
+        
+    if len(duracoes) == 0:
+        return 0.0, 0.0
+        
+    return np.max(duracoes), np.mean(duracoes)
+
+# Lista para consolidar os dicionários de métricas
+metricas_stress = []
+
+metricas_stress_com_duration = []
+
+for limite in [0.08, 0.10, 0.12]:
+    print(f"Processando Limite: {limite*100:.1f}%...")
+    for memoria in [1,3,5]:
+        print(f"Processando Durações: Memória = {memoria} | Limite = {limite*100:.1f}%...")
+        for slippage in [0.001, 0.003, 0.005, 0.007]:
+            print(f"Processando Durações: Memória = {memoria} | Slippage = {slippage*100:.1f}%...")
+            
+            # 1. Roda o seu motor quantitativo
+            df_res, _, _, _, _ = run_walk_forward_motor(
+                df_features=df_features, 
+                retornos_sinal=retornos_sinal,
+                retornos_execucao=retornos_execucao,
+                acoes_disponiveis=ativos_risco,
+                colunas_hmm=df_features.columns,
+                colunas_operacao=colunas_operacao,
+                ano_inicio_operacao=2010,
+                janela_teste=1, 
+                metrica_otimizacao='adaptativo',
+                tempo_regime=22, 
+                limite_max_por_ativo=limite,
+                custo_corretagem=0.005,          
+                capital_inicial=100000,
+                anos_memoria_treino=memoria,
+                custo_slippage=slippage
+            )
+            
+            df_res.index = pd.to_datetime(df_res.index)
+            df_res = df_res.sort_index()
+            
+            # 2. Métricas de retorno tradicionais
+            patrimonio_inicial = df_res['Patrimonio'].iloc[0]
+            patrimonio_final = df_res['Patrimonio'].iloc[-1]
+            anos = len(df_res) / 252.0
+            cagr = (patrimonio_final / patrimonio_inicial) ** (1 / anos) - 1
+            
+            retornos = df_res['Retorno_Modelo'].dropna()
+            vol = retornos.std() * np.sqrt(252)
+            retorno_anual_comp = (1 + retornos.mean()) ** 252 - 1
+            sharpe = retorno_anual_comp / vol if vol != 0 else 0
+            
+            # 3. Métricas de profundidade do risco
+            rolling_max = df_res['Patrimonio'].cummax()
+            drawdown = (df_res['Patrimonio'] - rolling_max) / rolling_max
+            max_dd = drawdown.min()
+            
+            # 4. NOVAS MÉTRICAS: Métricas de Tempo do Risco (Duration)
+            max_duration_dias, mean_duration_dias = calcular_drawdown_durations(df_res['Patrimonio'])
+            
+            # Convertendo dias úteis de mercado para uma aproximação comercial em meses (21 dias úteis/mês)
+            max_duration_meses = max_duration_dias / 21.0
+            mean_duration_meses = mean_duration_dias / 21.0
+            
+            metricas_stress_com_duration.append({
+                "Memória (Anos)": memoria,
+                "Slippage (%)": f"{slippage * 100:.1f}%",
+                "Limite (%)": f"{limite * 100:.1f}%",
+                "CAGR": f"{cagr * 100:.2f}%",
+                "Sharpe": f"{sharpe:.2f}",
+                "Max DD": f"{max_dd * 100:.2f}%",
+                "Max Duration (Meses)": f"{max_duration_meses:.1f} M",
+                "Duração Média (Meses)": f"{mean_duration_meses:.1f} M"
+            })
+
+# Exibe o relatório institucional de encerramento do projeto
+df_relatorio_final = pd.DataFrame(metricas_stress_com_duration)
+print("\n" + "="*33 + " RELATÓRIO FINAL DE ESTRESSE & DURABILIDADE " + "="*33)
+print(df_relatorio_final.to_string(index=False))
+print("="*110)
+# %%
+
+df_relatorio_final.to_csv('df_relatorio_final_simulacoes.csv')
+
+
 # %%
 import pandas as pd
 import numpy as np
+
 df_resultado.index = pd.to_datetime(df_resultado.index)
 df_resultado = df_resultado.sort_index()
 
-# 2. Cálculo do CAGR Total (início ao fim do backtest)
+# 2. Cálculo do CAGR Total (Mapeamento geométrico exato)
 patrimonio_inicial = df_resultado['Patrimonio'].iloc[0]
 patrimonio_final = df_resultado['Patrimonio'].iloc[-1]
 dias_totais = len(df_resultado)
 anos = dias_totais / 252.0
 cagr_total = (patrimonio_final / patrimonio_inicial) ** (1 / anos) - 1
 
-# 3. Métricas baseadas na série de retornos diários ('Retorno_Modelo')
+# 3. Métricas baseadas na série de retornos diários
 retornos = df_resultado['Retorno_Modelo'].dropna()
 
 # Volatilidade Anualizada
 vol_anualizada = retornos.std() * np.sqrt(252)
 
-# Retorno Médio Anualizado
-retorno_medio_anualizado = retornos.mean() * 252
-
-# Sharpe Ratio
+# CORREÇÃO: Retorno Anualizado Composto (Alinhado ao padrão de fundos)
+retorno_anualizado_comp = (1 + retornos.mean()) ** 252 - 1
 taxa_livre_risco = 0.0
-sharpe_ratio = (retorno_medio_anualizado - taxa_livre_risco) / vol_anualizada
 
-# --- NOVAS MÉTRICAS ---
+# Sharpe Ratio Corrigido
+sharpe_ratio = (retorno_anualizado_comp - taxa_livre_risco) / vol_anualizada
 
-# Downside Deviation (apenas retornos abaixo de zero)
-retornos_negativos = retornos[retornos < 0]
-downside_deviation = retornos_negativos.std() * np.sqrt(252)
+# --- NOVAS MÉTRICAS DE RISCO ASYMMETRIC ---
 
-# Sortino Ratio
-sortino_ratio = (retorno_medio_anualizado - taxa_livre_risco) / downside_deviation if downside_deviation != 0 else np.nan
+# CORREÇÃO: Downside Deviation correto (raiz da média dos quadrados dos retornos abaixo de zero)
+target_return = 0.0
+retornos_abaixo_target = retornos[retornos < target_return]
+downside_deviation = np.sqrt(np.mean(retornos_abaixo_target ** 2)) * np.sqrt(252)
+
+# Sortino Ratio Corrigido
+sortino_ratio = (retorno_anualizado_comp - taxa_livre_risco) / downside_deviation if downside_deviation != 0 else np.nan
 
 # 4. Max Drawdown
 rolling_max = df_resultado['Patrimonio'].cummax()
 drawdown = (df_resultado['Patrimonio'] - rolling_max) / rolling_max
 max_drawdown = drawdown.min()
 
-# Calmar Ratio (usando o CAGR Total absoluto)
+# Calmar Ratio
 calmar_ratio = cagr_total / abs(max_drawdown) if max_drawdown != 0 else np.nan
 
 # Tail Ratio (Percentil 95 / Valor absoluto do Percentil 5)
@@ -155,16 +269,30 @@ p95 = np.percentile(retornos, 95)
 p05 = abs(np.percentile(retornos, 5))
 tail_ratio = p95 / p05 if p05 != 0 else np.nan
 
-# 5. Consolidando em um DataFrame Resumo Ampliado
+# --- IMPLEMENTAÇÃO: VaR e CVaR HISTÓRICO ---
+
+# Nível de significância alfa = 5% (Confiança 95%)
+var_95_diario = np.percentile(retornos, 5) # Retorno do pior 5º percentil
+cvar_95_diario = retornos[retornos <= var_95_diario].mean() # Média dos 5% piores retornos
+
+# Nível de significância alfa = 1% (Confiança 99% - Estresse de Cauda Externa)
+var_99_diario = np.percentile(retornos, 1)
+cvar_99_diario = retornos[retornos <= var_99_diario].mean()
+
+# 5. Consolidando em um DataFrame Resumo Ampliado com Métricas de Cauda
 tabela_resumo = pd.DataFrame({
     "Métrica de Risco / Retorno": [
-        "CAGR Total", 
+        "CAGR Total (Geométrico)", 
         "Volatilidade Anualizada", 
         "Sharpe Ratio",
         "Sortino Ratio",
         "Máximo Drawdown (Max DD)",
         "Calmar Ratio",
-        "Tail Ratio (95/5)"
+        "Tail Ratio (95/5)",
+        "VaR Histórico Diário (95%)",
+        "CVaR Histórico Diário (95%)",
+        "VaR Histórico Diário (99%)",
+        "CVaR Histórico Diário (99%)"
     ],
     "Estratégia HMM + Bellman": [
         f"{cagr_total * 100:.2f}%",
@@ -173,7 +301,11 @@ tabela_resumo = pd.DataFrame({
         f"{sortino_ratio:.2f}",
         f"{max_drawdown * 100:.2f}%",
         f"{calmar_ratio:.2f}",
-        f"{tail_ratio:.2f}"
+        f"{tail_ratio:.2f}",
+        f"{var_95_diario * 100:.2f}%",
+        f"{cvar_95_diario * 100:.2f}%",
+        f"{var_99_diario * 100:.2f}%",
+        f"{cvar_99_diario * 100:.2f}%"
     ]
 })
 

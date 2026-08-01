@@ -44,7 +44,7 @@ def criar_carteiras_por_regime(df_treino_acoes, estados_possiveis, ativos_vivos,
     for s in estados_possiveis:
         dias_estado = df_treino_acoes[df_treino_acoes['Estado_HMM'] == s]
 
-        if len(dias_estado) > tempo_regime:
+        if len(dias_estado) > 7:
             retornos_ativos = dias_estado[ativos_vivos]
             selic_media_regime = dias_estado['CDI'].mean()
 
@@ -196,14 +196,16 @@ def otimizar_carteira_por_regime(retornos_estado, taxa_livre_risco_diaria, metri
     if pesos.sum() > 0:
         pesos = pesos / pesos.sum()
 
+    teto_bolsa = 0.80
     fator_alocacao_bolsa = calcular_exposicao_kelly(
         retornos_estado=retornos_estado,
         pesos=pesos,
         taxa_livre_risco_diaria=taxa_livre_risco_diaria,
-        fracao_kelly=0.50,
-        teto_exposicao=1.0
+        fracao_kelly=0.7,
+        teto_exposicao=teto_bolsa
     )
 
+    fator_alocacao_bolsa = min(teto_bolsa, fator_alocacao_bolsa)
     pesos_finais_acoes = pesos * fator_alocacao_bolsa
 
     carteira_otima = pesos_finais_acoes.to_dict()
@@ -231,7 +233,7 @@ def calcular_metricas_bellman(estados_possiveis, df_treino_acoes, acoes_disponiv
     for s in estados_possiveis:
         dias_estado = df_treino_acoes[df_treino_acoes['Estado_HMM'] == s]
 
-        if len(dias_estado) <= tempo_regime:
+        if len(dias_estado) <= 7:
             for nome_acao in acoes_disponiveis_dinamico.keys():
                 recompensas[(s, nome_acao)] = -1.0
                 metricas_recompensa[(s, nome_acao)] = {
@@ -340,7 +342,7 @@ def calcular_metricas_bellman(estados_possiveis, df_treino_acoes, acoes_disponiv
 
 
 
-def calcular_exposicao_kelly(retornos_estado, pesos, taxa_livre_risco_diaria, fracao_kelly=0.50, teto_exposicao=1.0):
+def calcular_exposicao_kelly(retornos_estado, pesos, taxa_livre_risco_diaria, fracao_kelly=0.50, teto_exposicao=0.8):
     """
     Calcula a exposição global ótima da carteira usando o Critério de Kelly.
     

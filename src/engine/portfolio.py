@@ -14,7 +14,7 @@ class Portfolio:
         self.cdi_custo  = capital_inicial
         self.fila_clearing = []
         self.patrimonio = capital_inicial
-
+        self.total_imposto_pago = 0.0
 
     def patrimonio_total(self):
         valor_ativos = sum(self.ativos.values())
@@ -57,6 +57,7 @@ class Portfolio:
         taxa_cdi_hoje = retornos.get("CDI", 0.0)
         rendimento_cdi_dia = self.cdi_saldo * taxa_cdi_hoje
         self.cdi_saldo += rendimento_cdi_dia
+        
         self.patrimonio = self.patrimonio_total()
 
     def processar_clearing_diario(self):
@@ -98,18 +99,20 @@ class Portfolio:
         patrimonio_dinamico = self.patrimonio_total()
 
         for ativo, peso in pesos_alvo.items():
-            if ativo == "CDI" or ativo == 'Clearing':
+            if ativo in ["CDI", "Clearing"]:
                 continue
+
+            patrimonio_atualizado = self.patrimonio_total()
             atual = self.ativos.get(ativo, 0.0)
-            desejado = patrimonio_dinamico * peso
+            desejado = patrimonio_atualizado * peso
 
             if desejado > atual:
                 compra_necessaria = desejado - atual
                 if self.cdi_saldo <= 1e-4:
                     continue
 
-                compra_necessaria = min(compra_necessaria,  self.cdi_saldo)
-                liquido = self.resgatar_cdi(compra_necessaria, aliquota_cdi)
+                saque_bruto = min(compra_necessaria,  self.cdi_saldo)
+                liquido,imposto = self.resgatar_cdi(saque_bruto, aliquota_cdi)
 
                 if liquido > 0:
                     self._comprar_ativo(ativo, liquido)
@@ -123,7 +126,7 @@ class Portfolio:
 
     def _vender_ativo(self, ativo, valor):
             atual = self.ativos.get(ativo, 0.0)
-            valor = min(valor, atual)
+            valor = min(valor, max(0.0, atual := atual))
             novo = atual - valor
 
             if novo <= 1e-4:
@@ -146,16 +149,19 @@ class Portfolio:
             imposto = rendimento_resgatado * aliquota
             liquido = valor_resgate - imposto
 
+            #deducao fisica do caixa livre
             self.cdi_saldo -= valor_resgate
             self.cdi_custo = max(0.0, self.cdi_custo - custo * proporcao)
-            return liquido
+
+            self.total_imposto_pago += imposto
+            return liquido, imposto
 
     def snapshot(self):
         valor_retido_clearing = sum(lote['valor'] for lote in self.fila_clearing)
 
         return {
             "Patrimonio": self.patrimonio,
-            "Ativos": self.ativos,
+            "Ativos": self.ativos.copy(),
             "CDI": self.cdi_saldo,
             "Capital_Acoes": sum(self.ativos.values()),
             "Capital_Preso_Clearing": valor_retido_clearing,
