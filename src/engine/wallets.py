@@ -201,7 +201,7 @@ def otimizar_carteira_por_regime(retornos_estado, taxa_livre_risco_diaria, metri
         pesos=pesos,
         taxa_livre_risco_diaria=taxa_livre_risco_diaria,
         fracao_kelly=0.50,
-        teto_exposicao=0.70
+        teto_exposicao=1.0
     )
 
     pesos_finais_acoes = pesos * fator_alocacao_bolsa
@@ -340,7 +340,7 @@ def calcular_metricas_bellman(estados_possiveis, df_treino_acoes, acoes_disponiv
 
 
 
-def calcular_exposicao_kelly(retornos_estado, pesos, taxa_livre_risco_diaria, fracao_kelly=0.50, teto_exposicao=0.7):
+def calcular_exposicao_kelly(retornos_estado, pesos, taxa_livre_risco_diaria, fracao_kelly=0.50, teto_exposicao=1.0):
     """
     Calcula a exposição global ótima da carteira usando o Critério de Kelly.
     
@@ -349,7 +349,7 @@ def calcular_exposicao_kelly(retornos_estado, pesos, taxa_livre_risco_diaria, fr
     - pesos: Pandas Series ou Array com os pesos relativos dos ativos (soma = 1.0).
     - taxa_livre_risco_diaria: Taxa livre de risco diária do período.
     - fracao_kelly: Multiplicador de risco (0.50 para Half-Kelly).
-    - teto_exposicao: Limite máximo de alocação em bolsa (0.7 = 70%).
+    - teto_exposicao: Limite máximo de alocação em bolsa (1.0 = 100%).
     
     Retorna:
     - fator_alocacao_bolsa (float): Percentual ótimo para expor em bolsa [0.0, teto_exposicao].

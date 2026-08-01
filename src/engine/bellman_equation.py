@@ -12,7 +12,6 @@ def belmann_equation(states, actions, transactions, rewards, discount_factor=0.9
     v = {s: 0 for s in states}
     policy = {s: None for s in states}
 
-    # Algorithm iteration
     while True:
         delta = 0
         for s in states:
