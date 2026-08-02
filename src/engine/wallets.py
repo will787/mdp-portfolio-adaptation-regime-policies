@@ -42,9 +42,9 @@ def criar_carteiras_por_regime(df_treino_acoes, estados_possiveis, ativos_vivos,
 
 
     for s in estados_possiveis:
-        dias_estado = df_treino_acoes[df_treino_acoes['Estado_HMM'] == s]
+        dias_estado = df_treino_acoes[df_treino_acoes['Estado_Regime'] == s]
 
-        if len(dias_estado) > 7:
+        if len(dias_estado) > tempo_regime:
             retornos_ativos = dias_estado[ativos_vivos]
             selic_media_regime = dias_estado['CDI'].mean()
 
@@ -216,7 +216,7 @@ def otimizar_carteira_por_regime(retornos_estado, taxa_livre_risco_diaria, metri
 
 
 def calcular_metricas_bellman(estados_possiveis, df_treino_acoes, acoes_disponiveis_dinamico,
-                              colunas_operacao, tempo_regime, metrica_otimizacao):
+                              colunas_operacao, tempo_regime, metrica_otimizacao, regimes):
 
     """"
         Avalia a matriz de utilidade histórica de cada combinação de Estado e Carteira.
@@ -231,7 +231,7 @@ def calcular_metricas_bellman(estados_possiveis, df_treino_acoes, acoes_disponiv
 
 
     for s in estados_possiveis:
-        dias_estado = df_treino_acoes[df_treino_acoes['Estado_HMM'] == s]
+        dias_estado = df_treino_acoes[df_treino_acoes['Estado_Regime'] == s]
 
         if len(dias_estado) <= 7:
             for nome_acao in acoes_disponiveis_dinamico.keys():
@@ -281,12 +281,7 @@ def calcular_metricas_bellman(estados_possiveis, df_treino_acoes, acoes_disponiv
             metrica_atual = metrica_otimizacao
             if metrica_otimizacao == 'adaptativo':
             
-                metrica_atual = {
-                    0: "omega",
-                    1: "sortino",
-                    2: "cvar",
-                    3: "min_vol",
-                }[s]
+                metrica_atual = regimes[s]['metrica']
 
             if metrica_atual == "sortino":
                 ret_negativo = retornos_portfolio_diario[retornos_portfolio_diario < 0]

@@ -35,10 +35,10 @@ from src.utils.read_dir import try_read_dir
 BASE_DIR = try_read_dir()
 
 features = [
-        'ibovespa_br_returns', 'ibovespa_br_volatily', 'ibovespa_br_momentum', 'ibovespa_br_zscore',
+        'ibovespa_br_returns', 'ibovespa_br_volatily', 'ibovespa_br_vol_regime',
         'vix_zscore', 'petro_brent_zscore', 'taxa_selic_zscore', 'risco_brasil_zscore',
-        'shanghai_china_returns',  'inflacao_mensal_pct_change_lag_1m',
-        'dolar_cambio_livre_p_tax_zscore', 'euro_cambio_livre_zscore'
+        'shanghai_china_vol_regime', 's&p500_eua_vol_regime', 'inflacao_mensal_pct_change_lag_1m',
+        'dolar_cambio_livre_p_tax_zscore', 'iene_cambio_livre_zscore'
 ]
 
 arquivo = BASE_DIR / 'data/gold/macro_features_hmm.parquet'
@@ -85,9 +85,9 @@ df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forw
     ano_inicio_operacao=2010, 
     janela_teste=1, 
     metrica_otimizacao='adaptativo',
-    anos_memoria_treino=3, 
-    tempo_regime=22, 
-    limite_max_por_ativo=0.10,
+    anos_memoria_treino=4, 
+    tempo_regime=63, 
+    limite_max_por_ativo=0.08,
     custo_corretagem=0.005,             
     custo_slippage=0.003,              
     capital_inicial=100000
@@ -96,6 +96,8 @@ df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forw
 vis.plot_full_history(df_resultado, ano_inicio=2010)
 vis.plot_regimes_historicos(df_resultado)
 vis.plot_heatmap_alpha_mensal(df_resultado)
+vis.analise_comparativa_benchmark_flag(df_resultado, df_features,flag_vline=1)
+vis.plot_scatter_retornos_mensais(df_resultado, coluna_bench='Retorno_Benchmark_Hibrido_Dinamico')
 vis.plot_distribuicao_retornos(df_resultado)
 vis.analise_atribuicao_alpha(df_resultado)
 vis.plot_evolucao_alocacao(df_resultado)
@@ -107,6 +109,16 @@ df_rodadas.to_csv('df_rodadas.csv')
 df_recompensas.to_csv('df_recompensas.csv')
 df_carteiras.to_csv('df_carteiras.csv')
 df_pesos.to_csv('df_pesos.csv')
+
+# %%
+for regime, grupo in df_resultado.groupby("Nome_Regime"):
+
+    ret_modelo = (1 + grupo["Retorno_Modelo"]).prod() - 1
+    ret_ibov = (1 + grupo["Retorno_Benchmark"]).prod() - 1
+
+    alpha = ret_modelo - ret_ibov
+
+    print(f"{regime}: Alpha = {alpha * 100:.2f}%")
 
 # %%
 
@@ -146,11 +158,11 @@ metricas_stress = []
 
 metricas_stress_com_duration = []
 
-for limite in [0.08, 0.10, 0.12]:
+for limite in [0.08, 0.09, 0.10]:
     print(f"Processando Limite: {limite*100:.1f}%...")
-    for memoria in [1,3,5]:
+    for memoria in [3,4]:
         print(f"Processando Durações: Memória = {memoria} | Limite = {limite*100:.1f}%...")
-        for slippage in [0.001, 0.003, 0.005, 0.007]:
+        for slippage in [0.003, 0.005]:
             print(f"Processando Durações: Memória = {memoria} | Slippage = {slippage*100:.1f}%...")
             
             # 1. Roda o seu motor quantitativo
@@ -367,4 +379,75 @@ def plot_evolucao_exposicao(df_resultado):
 
 plot_evolucao_exposicao(df_resultado)
 
+# %%
+
+def analisar_resultados_por_regime(df):
+    """
+    Agrupa e calcula métricas institucionais de retorno, volatilidade, 
+    eficiência e exposição física para cada regime predito pelo HMM.
+    """
+    # Garante ordenação e tratamento de nulos
+    df = df.sort_index()
+    
+    # Lista para armazenar o dicionário de métricas de cada regime
+    metricas_regimes = []
+    
+    # Identifica os regimes únicos presentes no backtest (ex: Estado 0, Estado 1...)
+    regimes_unicos = df['Regime_Macro'].dropna().unique()
+    
+    for regime in regimes_unicos:
+        # Filtra o DataFrame apenas para os dias em que o modelo esteve neste regime
+        df_sub = df[df['Regime_Macro'] == regime]
+        
+        # Ignora se a amostra for insignificante (menos de 5 dias úteis)
+        if len(df_sub) < 5:
+            continue
+            
+        retornos = df_sub['Retorno_Modelo'].dropna()
+        
+        # 1. Contagem de dias e representatividade temporal
+        total_dias = len(df_sub)
+        porcentagem_tempo = (total_dias / len(df)) * 100
+        
+        # 2. Retorno Médio Anualizado Composto (Considerando a frequência do regime)
+        # Usamos a média geométrica/composta diária trazida para a escala de 252 dias úteis
+        retorno_medio_anual = (1 + retornos.mean()) ** 252 - 1
+        
+        # 3. Volatilidade Anualizada do Regime
+        vol_anual = retornos.std() * np.sqrt(252)
+        
+        # 4. Sharpe Ratio do Regime (Taxa livre de risco considerada zero no subperíodo)
+        sharpe = retorno_medio_anual / vol_anual if vol_anual != 0 else 0
+        
+        # 5. Exposição Média em Ações durante o Regime
+        # Se você tiver a coluna de exposição direta no snapshot, use ela. 
+        # Caso contrário, calculamos pela proporção do capital alocado em risco.
+        if 'Exposicao' in df_sub.columns:
+            exp_media = df_sub['Exposicao_Acoes'].mean()
+        elif 'Capital_Acoes' in df_sub.columns and 'Patrimonio' in df_sub.columns:
+            exp_media = (df_sub['Capital_Acoes'] / df_sub['Patrimonio']).mean()
+        else:
+            exp_media = np.nan
+            
+        # Consolida as métricas calculadas
+        metricas_regimes.append({
+            "Regime": int(regime),
+            "Dias Ativo": total_dias,
+            "% Tempo Fundo": f"{porcentagem_tempo:.1f}%",
+            "Retorno Médio Anual": f"{retorno_medio_anual * 100:.2f}%",
+            "Volatilidade Anual": f"{vol_anual * 100:.2f}%",
+            "Sharpe Ratio": f"{sharpe:.2f}",
+            "Exposição Média": f"{exp_media * 100:.2f}%" if not np.isnan(exp_media) else "N/A"
+        })
+        
+    # Transforma em DataFrame para exibição estruturada
+    df_analise = pd.DataFrame(metricas_regimes).sort_values(by="Regime")
+    
+    print("\n" + "="*25 + " RAIO-X DE PERFORMANCE POR REGIME (HMM) " + "="*25)
+    print(df_analise.to_string(index=False))
+    print("="*90)
+    
+    return df_analise
+
+df_regimes_summary = analisar_resultados_por_regime(df_resultado)
 # %%

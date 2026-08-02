@@ -1,7 +1,7 @@
 import numpy as np
 import sys
 from src.engine.strategy import executar_strategy
-from src.engine.benchmark import benchmark_hibrido
+from src.engine.benchmark import benchmark_hibrido, atribuicao_benchmark_dinamico
 from src.engine.brain import MarketBrain
 
 
@@ -24,7 +24,6 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
     logs_carteiras = []
     prob_estados_hoje_ordenado = None
 
-    mapa_risco_rev = {v: k for k, v in brain.mapa_risco.items()}
     for i in range(1, len(df_teste_acoes)):
 
         data_atual = df_teste_acoes.index[i]
@@ -110,6 +109,7 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
         retorno_taxa_cdi = df_teste_acoes.iloc[i].get('CDI', 0.0) #pct_change diario
 
         retorno_bench_hibrido_dia = benchmark_hibrido(retorno_benchmark_dia, retorno_taxa_cdi)
+        retorno_bench_hibrido_dinamico = atribuicao_benchmark_dinamico(retorno_benchmark_dia, retorno_taxa_cdi, portfolio.exposicao())
 
 
         portfolio = resultado["portfolio"]
@@ -139,7 +139,8 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
         logs_diarios.append({
             "Data": data_atual,
             **resultado_log,
-            "Regime_Macro": estado_hoje
+            "Regime_Macro": estado_hoje,
+            "Nome_Regime": brain.regimes[estado_hoje]["nome"],
         })
 
         capital_clearing = resultado['snapshot']['Patrimonio'] - resultado['snapshot']['CDI'] - resultado['snapshot']['Capital_Acoes']
@@ -147,6 +148,8 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
         logs_backtest.append({
             "Data": data_atual,
             "Regime_Macro": estado_hoje,
+            "Nome_Regime": brain.regimes[estado_hoje]["nome"],
+            "Regime_Metrica": brain.regimes[estado_hoje]["metrica"],
             "Estado_Futuro": 99,
             "Evento": resultado["evento"],
             "Carteira_Atual": carteira_atual,
@@ -162,6 +165,7 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
             "Retorno_Modelo": retorno_modelo_dia,
             "Retorno_Benchmark": retorno_benchmark_dia,
             "Retorno_Benchmark_Hibrido": retorno_bench_hibrido_dia,
+            "Retorno_Benchmark_Hibrido_Dinamico": retorno_bench_hibrido_dinamico,
             "Capital_Preso_Clearing": round(capital_clearing, 4),
             "Custo_Transacao": round(resultado["Custo_Transacao"], 4),
             "Custo_Slippage": round(resultado["Custo_Slippage"], 4),

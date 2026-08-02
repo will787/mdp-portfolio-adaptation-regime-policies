@@ -23,13 +23,17 @@ def plot_full_history(df_resultado, ano_inicio=None):
 
     # Cálculo dos Juros Compostos (Efeito Bola de Neve contínuo)
     df['Acumulado_Modelo'] = (1 + df['Retorno_Modelo']).cumprod() - 1
-    df['Acumulado_Bench'] = (1 + df['Retorno_Benchmark']).cumprod() - 1
-    df['Acumulado_Bench_Hibrido'] = (1 + df['Retorno_Benchmark_Hibrido']).cumprod() -1
 
-    # Converter para percentagem
-    df['Acumulado_Modelo'] *= 100
-    df['Acumulado_Bench'] *= 100
-    df['Acumulado_Bench_Hibrido'] *= 100
+    df['Acumulado_Benchmark_Hibrido'] = (1 + df['Retorno_Benchmark_Hibrido']).cumprod() - 1
+
+    df['Acumulado_Benchmark_Dinamico'] = (1 + df['Retorno_Benchmark_Hibrido_Dinamico']).cumprod() - 1
+
+    for col in [
+        'Acumulado_Modelo',
+        'Acumulado_Benchmark_Hibrido',
+        'Acumulado_Benchmark_Dinamico'
+    ]:
+        df[col] *= 100
 
     # Texto para o título
     texto_periodo = f"{df.index.min().strftime('%b %Y')} até {df.index.max().strftime('%b %Y')}"
@@ -38,73 +42,74 @@ def plot_full_history(df_resultado, ano_inicio=None):
 
     # Linha do Ibovespa (Benchmark)
     fig.add_trace(go.Scatter(
-        x=df.index, y=df['Acumulado_Bench'],
-        mode='lines',
-        name='Ibovespa',
-        line=dict(color='gray', width=2),
-        fill='tozeroy',
-        fillcolor='rgba(128, 128, 128, 0.1)'
+    x=df.index,
+    y=df['Acumulado_Benchmark_Hibrido'],
+    mode='lines',
+    name='Benchmark 50/50',
+    line=dict(color='dimgray', width=2)
     ))
 
-    # Linha do K-nesian (Modelo)
     fig.add_trace(go.Scatter(
-        x=df.index, y=df['Acumulado_Modelo'],
+        x=df.index,
+        y=df['Acumulado_Benchmark_Dinamico'],
+        mode='lines',
+        name='Benchmark Dinâmico',
+        line=dict(
+            color='darkorange',
+            width=2,
+            dash='dash'
+        )
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df.index,
+        y=df['Acumulado_Modelo'],
         mode='lines',
         name='K-nesian HMM',
-        line=dict(color='blue', width=2.5),
-        fill='tonexty', # Pinta a diferença de Alpha entre o modelo e o bench
-        fillcolor='rgba(0, 0, 255, 0.05)'
+        line=dict(color='royalblue', width=3)
     ))
 
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df['Acumulado_Bench_Hibrido'],
-        mode='lines',
-        name='CDI + IBOV',
-        line=dict(color='yellow', width=2)
-    ))
-
-    # Adicionar o valor final no gráfico (estilo Google Finance)
     retorno_final_mod = df['Acumulado_Modelo'].iloc[-1]
-    retorno_final_bench = df['Acumulado_Bench'].iloc[-1]
-    retorno_final_bench_hibrido = df['Acumulado_Bench_Hibrido'].iloc[-1]
+    retorno_final_bench_hib = df['Acumulado_Benchmark_Hibrido'].iloc[-1]
+    retorno_final_bench_hib_dinamico = df['Acumulado_Benchmark_Dinamico'].iloc[-1]
     
     fig.add_annotation(
         x=df.index[-1], y=retorno_final_mod,
         text=f"K-nesian: {retorno_final_mod:.1f}%",
-        showarrow=True, arrowhead=1, ax=-40, ay=-40,
+        showarrow=True, arrowhead=1, ax=-80, ay=-45,
         font=dict(color="blue", size=12, weight="bold")
     )
     
     fig.add_annotation(
-        x=df.index[-1], y=retorno_final_bench,
-        text=f"Ibov: {retorno_final_bench:.1f}%",
-        showarrow=True, arrowhead=1, ax=-40, ay=40,
+        x=df.index[-1], y=retorno_final_bench_hib,
+        text=f"Ibov + CDI: {retorno_final_bench_hib:.1f}%",
+        showarrow=True, arrowhead=1, ax=-80, ay=10,
         font=dict(color="gray", size=12)
     )
 
     fig.add_annotation(
-        x=df.index[-1], y=retorno_final_bench_hibrido,
-        text=f"Ibov + CDI: {retorno_final_bench_hibrido:.1f}",
-        showarrow=True, arrowhead=1, ax=-40, ay=-40,
-        font=dict(color="yellow", size=12)
+        x=df.index[-1], y=retorno_final_bench_hib_dinamico,
+        text=f"Benchmark Dinâmico: {retorno_final_bench_hib_dinamico:.1f}%",
+        showarrow=True, arrowhead=1, ax=-40, ay=-75,
+        font=dict(color="darkorange", size=12)
     )
 
     fig.update_layout(
-        title=f'<b>Evolução Patrimonial Contínua (Retorno Acumulado)</b><br><sup>Período: {texto_periodo}</sup>',
+        title=("<b>Evolução do Patrimônio Acumulado</b>"f"<br><sup>{texto_periodo}</sup>"),
         xaxis_title='Linha do Tempo',
         yaxis_title='Retorno Acumulado (%)',
         plot_bgcolor='white',
         hovermode='x unified', # Mostra uma linha vertical com os valores no dia
-        xaxis=dict(showgrid=True, gridcolor='lightgrey'),
-        yaxis=dict(showgrid=True, gridcolor='lightgrey', zeroline=True, zerolinecolor='black'),
+        xaxis=dict(showgrid=True, gridcolor="rgba(220,220,220,0.5)"),
+        yaxis=dict(showgrid=True, gridcolor="rgba(220,220,220,0.5)", zeroline=True, zerolinecolor="rgba(100,100,100,0.4)"),
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor="rgba(255, 255, 255, 0.8)")
     )
 
     fig.show()
 
-def plot_heatmap_alpha_mensal(df_resultado):
+def plot_heatmap_alpha_mensal(df_resultado, benchmark="dinamico"):
     """
-    Gera uma matriz de calor (Heatmap) institucional que quebra o Alpha
+    Gera uma matriz de calor (Heatmap) que quebra o Alpha
     mês a mês para cada ano do histórico do backtest.
     """
     df = df_resultado.copy()
@@ -114,7 +119,14 @@ def plot_heatmap_alpha_mensal(df_resultado):
     
     def calcular_alpha_mensal(x):
         ret_modelo = (1 + x['Retorno_Modelo']).prod() - 1
-        ret_bench = (1 + x['Retorno_Benchmark']).prod() - 1
+        if benchmark == "dinamico":
+            ret_bench = (1 + x['Retorno_Benchmark_Hibrido_Dinamico']).prod() - 1
+        elif benchmark == "hibrido":
+            ret_bench = (1 + x['Retorno_Benchmark_Hibrido']).prod() - 1
+        elif benchmark == "ibovespa":
+            ret_bench = (1 + x['Retorno_Benchmark']).prod() - 1
+        else:
+            raise ValueError(f"Benchmark desconhecido: {benchmark}")
         return (ret_modelo - ret_bench) * 100
 
     tabela_mensal = df.groupby(['Ano', 'Mes']).apply(calcular_alpha_mensal).reset_index(name='Alpha (%)')
@@ -145,7 +157,7 @@ def plot_heatmap_alpha_mensal(df_resultado):
     
     # Ajustes finos de Layout institucional
     fig.update_layout(
-        title='<b>Raio-X de Alpha Mensal (Estratégia HMM vs Ibovespa)</b>',
+        title=f'<b>Raio-X de Alpha Mensal (Estratégia vs {benchmark.upper()})</b>',
         xaxis_title='Meses do Ano',
         yaxis_title='Janelas Anuais',
         height=35 * len(matriz_alpha) + 150,
@@ -167,7 +179,7 @@ def analyze_recent_block(df_resultado, janela_anos=2):
 
     if not df_ultimo_bloco.empty:
         df_ultimo_bloco['Capital_Knesian_Recente'] = np.exp(df_ultimo_bloco['Retorno_Modelo'].cumsum())
-        df_ultimo_bloco['Capital_Benchmark_Recente'] = np.exp(df_ultimo_bloco['Retorno_Benchmark'].cumsum())
+        df_ultimo_bloco['Capital_Benchmark_Recente'] = np.exp(df_ultimo_bloco['Retorno_Benchmark_Hibrido_Dinamico'].cumsum())
 
         df_ultimo_bloco['Rentabilidade_Knesian_Perc'] = (df_ultimo_bloco['Capital_Knesian_Recente'] - 1) * 100
         df_ultimo_bloco['Rentabilidade_Benchmark_Perc'] = (df_ultimo_bloco['Capital_Benchmark_Recente'] - 1) * 100
@@ -224,7 +236,7 @@ def analise_comparativa_benchmark_flag(df_resultado, df_features, flag_vline=1,)
     df['Ano'] = df.index.year
     def metricas_anuais(x):
         ret_modelo = (1 + x['Retorno_Modelo']).prod() - 1
-        ret_bench = (1 + x['Retorno_Benchmark']).prod() - 1
+        ret_bench = (1 + x['Retorno_Benchmark_Hibrido_Dinamico']).prod() - 1
         vol_modelo = x['Retorno_Modelo'].std() * np.sqrt(252)
         sharpe_modelo = (x['Retorno_Modelo'].mean() * 252) / (vol_modelo + 1e-6)
         
@@ -243,7 +255,7 @@ def analise_comparativa_benchmark_flag(df_resultado, df_features, flag_vline=1,)
         rows=2, cols=1, 
         shared_xaxes=False,
         vertical_spacing=0.12,
-        subplot_titles=('Equity Curve: Aprendizado (Cego) vs Operação HMM', 'Alpha Anual (Modelo vs Ibovespa)'),
+        subplot_titles=('Equity Curve: Aprendizado (Cego) vs Operação HMM', 'Alpha Anual (Modelo vs Benchmark Dinâmico)'),
         row_heights=[0.7, 0.3]
     )        
 
@@ -293,21 +305,21 @@ def analise_comparativa_benchmark_flag(df_resultado, df_features, flag_vline=1,)
 
 def analise_comparativa_benchmark(df_resultado):
     """
-    Gera um painel comparativo entre a Estratégia e o Benchmark (Ibovespa),
+    Gera um painel comparativo entre a Estratégia e o Benchmark (Ibovespa Hibrido),
     incluindo a curva de capital acumulada e a performance detalhada por janelas de teste (anos).
     """
     df = df_resultado.copy()
 
     # 1. Cálculo da Curva de Capital (Equity Curve) Base 100
     df['Capital_Modelo'] = (1 + df['Retorno_Modelo']).cumprod() * 100
-    df['Capital_Benchmark'] = (1 + df['Retorno_Benchmark']).cumprod() * 100
+    df['Capital_Benchmark'] = (1 + df['Retorno_Benchmark_Hibrido_Dinamico']).cumprod() * 100
     
     # 2. Cálculo de Performance por Ano (Janelas de Teste)
     df['Ano'] = df.index.year
     
     def metricas_anuais(x):
         ret_modelo = (1 + x['Retorno_Modelo']).prod() - 1
-        ret_bench = (1 + x['Retorno_Benchmark']).prod() - 1
+        ret_bench = (1 + x['Retorno_Benchmark_Hibrido_Dinamico']).prod() - 1
         vol_modelo = x['Retorno_Modelo'].std() * np.sqrt(252)
         sharpe_modelo = (x['Retorno_Modelo'].mean() * 252) / (vol_modelo + 1e-6)
         
@@ -367,59 +379,24 @@ def analise_comparativa_benchmark(df_resultado):
     fig.show()
 
 def plot_regimes_historicos(df_resultado):
-    """
-    Traduz os regimes numéricos do HMM para cenários macroeconômicos humanos
-    e gera um gráfico do mercado colorido por regime.
-    """
-    df_plot = df_resultado.copy()
-    
-    # 1. O Dicionário de Tradução Causal
-    # Como o motor ordena a matriz por volatilidade (0 ao 3), a leitura é sempre esta:
-    dicionario_regimes = {
-        0: "1. Bull Market (Baixa Vol)",
-        1: "2. Transição / Normal (Média Vol)",
-        2: "3. Correção (Alta Vol)",
-        3: "4. Crise / Pânico (Vol Extrema)"
-    }
 
-    df_plot['Narrativa_Macro'] = df_plot['Regime_Macro'].map(dicionario_regimes)
-    df_plot['Narrativa_Macro'] = df_plot['Narrativa_Macro'].fillna("Não Classificado")
-    df_plot['Ibovespa_Acumulado'] = (1 + df_plot['Retorno_Benchmark']).cumprod() * 100
-    
-    # 4. Desenha o gráfico colorindo o mercado com a visão do Robô
+    df_plot = df_resultado.copy()
+
+    df_plot['Ibovespa_Acumulado'] = (
+        1 + df_plot['Retorno_Benchmark']
+    ).cumprod() * 100
+
+
     fig = px.scatter(
-        df_plot, 
-        x=df_plot.index,    
-        y='Ibovespa_Acumulado', 
-        color='Narrativa_Macro', 
-        title='Raio-X Macro: Como o Robô Enxergou o Mercado ao Longo do Tempo',
-        log_y=True, # Escala Logarítmica para não distorcer o passado longo
-        color_discrete_map={
-            "1. Bull Market (Baixa Vol)": "green",
-            "2. Transição / Normal (Média Vol)": "blue",
-            "3. Correção (Alta Vol)": "orange",
-            "4. Crise / Pânico (Vol Extrema)": "red"
-        },
-        category_orders={"Narrativa_Macro": list(dicionario_regimes.values())}
+        df_plot,
+        x=df_plot.index,
+        y='Ibovespa_Acumulado',
+        color='Nome_Regime',
+        title='Raio-X Macro: Regimes Detectados pelo HMM',
+        log_y=True
     )
-    
-    fig.update_traces(marker=dict(size=4))
-    fig.update_layout(
-        template="plotly_white", 
-        hovermode="x unified",
-        yaxis_title="Ibovespa Acumulado (Escala Log)",
-        xaxis_title="Tempo"
-    )
-    
+
     fig.show()
-    
-    # Imprime uma tabela de frequência no terminal
-    print("\n" + "="*50)
-    print(" DISTRIBUIÇÃO HISTÓRICA DOS REGIMES MACRO ")
-    print("="*50)
-    contagem = df_plot['Narrativa_Macro'].value_counts(normalize=True) * 100
-    print(contagem.round(2).astype(str) + " % dos dias")
-    print("="*50 + "\n")
 
 
 def plot_heatmap_alpha_mensal(df_resultado):
@@ -434,7 +411,7 @@ def plot_heatmap_alpha_mensal(df_resultado):
     
     def calcular_alpha_mensal(x):
         ret_modelo = (1 + x['Retorno_Modelo']).prod() - 1
-        ret_bench = (1 + x['Retorno_Benchmark']).prod() - 1
+        ret_bench = (1 + x['Retorno_Benchmark_Hibrido_Dinamico']).prod() - 1
         return (ret_modelo - ret_bench) * 100
 
     tabela_mensal = df.groupby(['Ano', 'Mes']).apply(calcular_alpha_mensal).reset_index(name='Alpha (%)')
@@ -474,34 +451,16 @@ def plot_heatmap_alpha_mensal(df_resultado):
     
     fig.show()
 
-def plot_scatter_retornos_mensais_dinamico(df_resultado, bench_hibrido=True, ano_destaque=2025, ano_inicio=None, ano_fim=None):
+def plot_scatter_retornos_mensais(df_resultado, coluna_bench='Retorno_Benchmark',ano_destaque=2025, ano_inicio=None, ano_fim=None):
     """
-    Gera um gráfico de dispersão (Scatter Plot) mensal comparando o Modelo contra o Benchmark escolhido.
-    A flag 'bench_hibrido' chaveia a análise de forma binária:
-        True: Compara com o Benchmark Híbrido (50/50)
-        False: Compara com o Ibovespa Puro (Retorno_Benchmark)
+    Gera um gráfico de dispersão (Scatter Plot) comparando o retorno mensal do Modelo
+    vs o Benchmark. Adiciona uma regressão linear (OLS) e destaca um ano específico.
+    Permite filtrar o período visualizado usando ano_inicio e ano_fim.
     """
     df = df_resultado.copy()
     
-    # 1. Configuração Dinâmica Baseada na Flag Binária
-    if bench_hibrido:
-        col_bench = 'Retorno_Benchmark_Hibrido'
-        label_bench = 'Bench Híbrido (50/50): Retorno Mensal (%)'
-        titulo_bench = 'Benchmark Híbrido (50/50)'
-        print_bench = 'BENCHMARK HÍBRIDO'
-    else:
-        col_bench = 'Retorno_Benchmark'
-        label_bench = 'Ibovespa: Retorno Mensal (%)'
-        titulo_bench = 'Ibovespa Puro'
-        print_bench = 'IBOVESPA PURO'
-
-    # Validação de segurança para garantir que a coluna chaveada existe
-    if col_bench not in df.columns:
-        print(f"Erro: Coluna '{col_bench}' não encontrada no DataFrame.")
-        return
-
-    # 2. Resample mensal composto geometricamente para as colunas selecionadas
-    df_mensal = df[['Retorno_Modelo', col_bench]].resample('ME').apply(
+    # Usa 'ME' (Month End) para alinhar ao final de cada mês
+    df_mensal = df[['Retorno_Modelo', coluna_bench]].resample('ME').apply(
         lambda x: ((1 + x).prod() - 1) * 100
     )
     
@@ -521,8 +480,8 @@ def plot_scatter_retornos_mensais_dinamico(df_resultado, bench_hibrido=True, ano
     df_mensal['Categoria'] = df_mensal['Ano'].apply(categorizar_ano)
     meses_nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     df_mensal['Nome_Mes'] = df_mensal['Mes'].apply(lambda x: meses_nomes[x-1])
-    
     periodo_texto = "Histórico Completo"
+
     if ano_inicio is not None and ano_fim is not None:
         periodo_texto = f"{ano_inicio} a {ano_fim}"
     elif ano_inicio is not None:
@@ -530,35 +489,33 @@ def plot_scatter_retornos_mensais_dinamico(df_resultado, bench_hibrido=True, ano
     elif ano_fim is not None:
         periodo_texto = f"Até {ano_fim}"
     
-    # 3. Plot de Dispersão usando as variáveis chaveadas dinamicamente
     fig = px.scatter(
         df_mensal,
-        x=col_bench,
+        x=coluna_bench,
         y='Retorno_Modelo',
         color='Categoria',
-        trendline='ols', 
-        trendline_scope='overall', 
+        trendline='ols', # Adiciona a Regressão Linear Mínimos Quadrados
+        trendline_scope='overall', # Calcula uma única reta de regressão para todos os dados
         hover_data=['Ano', 'Nome_Mes'],
         color_discrete_map={
-            'Histórico Base': 'rgba(100, 149, 237, 0.6)', 
-            f'Destaque ({ano_destaque})': 'rgba(255, 69, 0, 1.0)' 
+            'Histórico Base': 'rgba(100, 149, 237, 0.6)', # Azul claro semi-transparente
+            f'Destaque ({ano_destaque})': 'rgba(255, 69, 0, 1.0)' # Laranja vibrante
         },
         labels={
-            col_bench: label_bench,
+            'Retorno_Benchmark': 'Benchmark: Retorno Mensal (%)',
             'Retorno_Modelo': 'HMM K-nesian: Retorno Mensal (%)',
             'Categoria': 'Período'
         },
-        title=f'<b>Dispersão de Retornos Mensais vs {titulo_bench} ({periodo_texto})</b><br><sup>Destaque visual para o ano de {ano_destaque}</sup>'
+        title=f'<b>Dispersão de Retornos Mensais e Regressão Linear ({periodo_texto})</b><br><sup>Destaque visual para o ano de {ano_destaque}</sup>'
     )
     
-    # Extração dos parâmetros OLS
+    # Extrair e exibir os parâmetros Matemáticos da Regressão ---
     resultados_ols = px.get_trendline_results(fig)
-    alpha_estrutural = 0.0
-    beta_mercado = 0.0
-    
     if not resultados_ols.empty:
         modelo_ols = resultados_ols.iloc[0]["px_fit_results"]
         params = modelo_ols.params
+        
+        # Tratamento de compatibilidade: dependendo da versão, params pode ser ndarray ou Series
         if hasattr(params, 'iloc'):
             alpha_estrutural = params.iloc[0]
             beta_mercado = params.iloc[1]
@@ -566,10 +523,11 @@ def plot_scatter_retornos_mensais_dinamico(df_resultado, bench_hibrido=True, ano
             alpha_estrutural = params[0]
             beta_mercado = params[1]
         
+        # Adicionar a caixa com as métricas extraídas no gráfico
         fig.add_annotation(
-            x=0.02, y=0.98, 
+            x=0.02, y=0.98, # Canto superior esquerdo
             xref="paper", yref="paper",
-            text=f"<b>Alpha vs {print_bench.title()}:</b> {alpha_estrutural:.2f}% ao mês<br><b>Beta vs {print_bench.title()}:</b> {beta_mercado:.2f}",
+            text=f"<b>Alpha Estrutural:</b> {alpha_estrutural:.2f}% ao mês<br><b>Beta (Exposição):</b> {beta_mercado:.2f}",
             showarrow=False,
             align="left",
             bgcolor="rgba(255, 255, 255, 0.9)",
@@ -578,6 +536,7 @@ def plot_scatter_retornos_mensais_dinamico(df_resultado, bench_hibrido=True, ano
             font=dict(size=12, color="black")
         )
 
+    # 4. Ajustes finos institucionais
     fig.update_layout(
         plot_bgcolor='white',
         xaxis=dict(showgrid=True, gridcolor='lightgrey', zeroline=True, zerolinecolor='black', zerolinewidth=2),
@@ -585,46 +544,50 @@ def plot_scatter_retornos_mensais_dinamico(df_resultado, bench_hibrido=True, ano
         hovermode='closest'
     )
     
-    min_val = min(df_mensal[col_bench].min(), df_mensal['Retorno_Modelo'].min()) - 2
-    max_val = max(df_mensal[col_bench].max(), df_mensal['Retorno_Modelo'].max()) + 2
+    # Adiciona uma reta diagonal pontilhada neutra (y = x) para referência de "Empate"
+    min_val = min(df_mensal[coluna_bench].min(), df_mensal['Retorno_Modelo'].min()) - 2
+    max_val = max(df_mensal[coluna_bench].max(), df_mensal['Retorno_Modelo'].max()) + 2
     
     fig.add_shape(
-        type='line', x0=min_val, y0=min_val, x1=max_val, y1=max_val,
-        line=dict(color='gray', dash='dash'), opacity=0.5
+        type='line',
+        x0=min_val, y0=min_val,
+        x1=max_val, y1=max_val,
+        line=dict(color='gray', dash='dash'),
+        opacity=0.5
     )
     fig.add_annotation(
-        x=max_val - 2, y=max_val, text="Linha de Empate", showarrow=False, font=dict(color="gray", size=10)
+        x=max_val - 2, y=max_val,
+        text="Linha de Empate (Alpha = 0)",
+        showarrow=False,
+        font=dict(color="gray", size=10)
     )
 
     fig.show()
 
     # ==========================================
-    # 4. PRINT ESTRUTURADO DE ESTATÍSTICAS DINÂMICO
+    # 5. PRINT ESTRUTURADO DE ESTATÍSTICAS
     # ==========================================
     ret_modelo_dec = df_mensal['Retorno_Modelo'] / 100
-    ret_bench_dec = df_mensal[col_bench] / 100
-
+    ret_bench_dec = df_mensal[coluna_bench] / 100
     acum_modelo = (1 + ret_modelo_dec).prod() - 1
     acum_bench = (1 + ret_bench_dec).prod() - 1
     alpha_total = acum_modelo - acum_bench
-
-    alpha_mensal_serie = df_mensal['Retorno_Modelo'] - df_mensal[col_bench]
+    alpha_mensal_serie = df_mensal['Retorno_Modelo'] - df_mensal[coluna_bench]
     alpha_medio = alpha_mensal_serie.mean()
     meses_vitoriosos = (alpha_mensal_serie > 0).sum()
     total_meses = len(df_mensal)
     hit_ratio = (meses_vitoriosos / total_meses) * 100 if total_meses > 0 else 0 
-
     print("\n" + "="*55)
-    print(f"📊 RESUMO ESTATÍSTICO vs {print_bench}: {periodo_texto}")
+    print(f"📊 RESUMO ESTATÍSTICO DO PERÍODO: {periodo_texto}")
     print("="*55)
     print(f"Total de Meses Analisados : {total_meses} meses")
     print(f"Retorno Acumulado Modelo  : {acum_modelo*100:+.2f}%")
-    print(f"Retorno Acumulado {titulo_bench:10} : {acum_bench*100:+.2f}%")
+    print(f"Retorno Acumulado Mercado : {acum_bench*100:+.2f}%")
     print(f"Alpha Total (Acumulado)   : {alpha_total*100:+.2f}%")
     print("-" * 55)
     print(f"Alpha Médio (Aritmético)  : {alpha_medio:+.2f}% ao mês")
     print(f"Alpha Estrutural (OLS)    : {alpha_estrutural:+.2f}% ao mês")
-    print(f"Beta em relação ao Bench  : {beta_mercado:.2f}")
+    print(f"Beta em relação ao Mercado: {beta_mercado:.2f}")
     print(f"Hit Ratio (Vitórias)      : {hit_ratio:.1f}% ({meses_vitoriosos}/{total_meses} meses)")
     print("="*55 + "\n")
 
@@ -633,26 +596,26 @@ def plot_distribuicao_retornos(df_resultado, bench_hibrido=True):
     Mostra o formato da distribuição (caudas gordas, assimetria) incluindo o Benchmark Híbrido.
     """
     ret_mod = df_resultado['Retorno_Modelo'] * 100
-    ret_bench = df_resultado['Retorno_Benchmark'] * 100
+    ret_bench = df_resultado['Retorno_Benchmark_Hibrido_Dinamico'] * 100
     
     fig = go.Figure()
     
     fig.add_trace(go.Histogram(
-        x=ret_bench, histnorm='probability density', name='Ibovespa Puro',
-        marker_color='gray', opacity=0.4, nbinsx=100
+        x=ret_bench, histnorm='probability density', name='Benchmark Dinâmico',
+        marker_color='gray', opacity=0.3, nbinsx=100
     ))
     
-    # Inclusão do Híbrido se a flag for True
-    if bench_hibrido and 'Retorno_Benchmark_Hibrido' in df_resultado.columns:
+    has_hib = bench_hibrido and 'Retorno_Benchmark_Hibrido' in df_resultado.columns
+    if has_hib:
         ret_hib = df_resultado['Retorno_Benchmark_Hibrido'] * 100
         fig.add_trace(go.Histogram(
             x=ret_hib, histnorm='probability density', name='Bench Híbrido (50/50)',
-            marker_color='orange', opacity=0.5, nbinsx=100
+            marker_color='orange', opacity=0.4, nbinsx=100
         ))
     
     fig.add_trace(go.Histogram(
         x=ret_mod, histnorm='probability density', name='K-nesian (Modelo)',
-        marker_color='blue', opacity=0.7, nbinsx=100
+        marker_color='#1f77b4', opacity=0.6, nbinsx=100
     ))
     
     fig.update_layout(
@@ -661,69 +624,89 @@ def plot_distribuicao_retornos(df_resultado, bench_hibrido=True):
         yaxis_title='Densidade de Probabilidade',
         barmode='overlay',
         plot_bgcolor='white',
+        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
         xaxis=dict(showgrid=True, gridcolor='lightgrey', zeroline=True, zerolinecolor='black'),
         yaxis=dict(showgrid=True, gridcolor='lightgrey')
     )
     fig.show()
     
-    print("\n--- MOMENTOS ESTATÍSTICOS DA DISTRIBUIÇÃO ---")
-    print(f"IBOVESPA      -> Assimetria (Skew): {skew(ret_bench):.2f} | Caudas (Kurtosis): {kurtosis(ret_bench):.2f}")
-    if bench_hibrido and 'Retorno_Benchmark_Hibrido' in df_resultado.columns:
-        print(f"BENCH HÍBRIDO -> Assimetria (Skew): {skew(ret_hib):.2f} | Caudas (Kurtosis): {kurtosis(ret_hib):.2f}")
-    print(f"K-NESIAN      -> Assimetria (Skew): {skew(ret_mod):.2f} | Caudas (Kurtosis): {kurtosis(ret_mod):.2f}")
-    print("*Nota Quant:* Assimetria mais positiva = Ganhos mais frequentes/Perdas cortadas.")
+    print("\n" + "="*65)
+    print("📊 MOMENTOS ESTATÍSTICOS DA DISTRIBUIÇÃO (DIÁRIO)")
+    print("="*65)
+    print(f"{'Estratégia':<25} | {'Skewness':<10} | {'Kurtosis':<10}")
+    print("-" * 65)
+    print(f"{'Benchmark Dinâmico':<25} | {skew(ret_bench):10.2f} | {kurtosis(ret_bench):10.2f}")
+    if has_hib:
+        print(f"{'Bench Híbrido (50/50)':<25} | {skew(ret_hib):10.2f} | {kurtosis(ret_hib):10.2f}")
+    print(f"{'K-nesian (Modelo)':<25} | {skew(ret_mod):10.2f} | {kurtosis(ret_mod):10.2f}")
+    print("="*65)
+    print("*Nota Quant:* Assimetria positiva (Skew > 0) indica maior frequência de retornos positivos;\n"
+          "             Curtose alta (Kurt > 3) indica caudas gordas (maior risco de crash).")
 
 
 def analise_atribuicao_alpha(df_resultado):
     """
-    Decompõe o retorno do modelo para responder à pergunta:
-    'O Alpha veio do Market Timing (Fuga para CDI) ou do Stock Picking?'
+    Decompõe o retorno considerando que a exposição a ações varia de forma contínua (0 a 1).
+    - Market Timing: Capturado pelo ganho/perda de se alocar em CDI vs. Ações proporcionalmente à exposição.
+    - Stock Picking: Capturado pelo excesso de retorno da carteira de ações do modelo vs. Benchmark quando exposto ao risco.
     """
     df = df_resultado.copy()
     
-    # CORREÇÃO: Como usamos alocação suavizada, olhamos para a exposição real.
-    # Se o modelo está com menos de 99% em ações, ele está com algum grau de Defesa (CDI).
-    df['Defesa_CDI'] = df['Exposicao_Acoes'] < 0.99
+    # Garantir que a exposição está entre 0 e 1 (caso esteja em %)
+    if df['Exposicao_Acoes'].max() > 1.0:
+        df['Exposicao_Acoes'] = df['Exposicao_Acoes'] / 100.0
+        
+    w = df['Exposicao_Acoes'] # Peso no ativo de risco (ex: 0.7 = 70% ações, 30% CDI)
     
-    # Grupo 1: Dias em que o modelo estava na Defesa (Caixa ou Híbrido)
-    df_defesa = df[df['Defesa_CDI']]
+    # Retornos diários
+    ret_mod = df['Retorno_Modelo']
+    ret_bench = df['Retorno_Benchmark_Hibrido_Dinamico']
     
-    # Prevenção de divisão por zero / log de vazio caso o modelo seja 100% agressivo
-    if not df_defesa.empty:
-        acum_defesa_mod = (1 + df_defesa['Retorno_Modelo']).prod() - 1
-        acum_defesa_bench = (1 + df_defesa['Retorno_Benchmark']).prod() - 1
-    else:
-        acum_defesa_mod = acum_defesa_bench = 0.0
+    # Como a exposição varia, podemos estimar o retorno do benchmark puramente em ações 
+    # e puramente no CDI se necessário, mas para manter a robustez com as colunas existentes:
+    # Vamos isolar o impacto da variação de peso (Timing) vs Seleção (Picking) dia a dia.
     
-    # Grupo 2: Dias em que o modelo estava no Ataque (100% Ações Ótimas)
-    df_ataque = df[~df['Defesa_CDI']]
+    # Exposição média do período
+    exp_media = w.mean() * 100
     
-    if not df_ataque.empty:
-        acum_ataque_mod = (1 + df_ataque['Retorno_Modelo']).prod() - 1
-        acum_ataque_bench = (1 + df_ataque['Retorno_Benchmark']).prod() - 1
-    else:
-        acum_ataque_mod = acum_ataque_bench = 0.0
+    # Acumulados globais
+    acum_mod = (1 + ret_mod).prod() - 1
+    acum_bench = (1 + ret_bench).prod() - 1
     
-    pct_tempo_defesa = len(df_defesa) / len(df) * 100
-    pct_tempo_ataque = len(df_ataque) / len(df) * 100
+    print("\n" + "="*65)
+    print("🔍 PERFORMANCE ATTRIBUTION (EXPOSIÇÃO CONTÍNUA)")
+    print("="*65)
+    print(f"• Exposição Média a Risco no Período: {exp_media:.1f}%")
+    print(f"• Exposição Mínima registrada:       {w.min()*100:.1f}%")
+    print(f"• Exposição Máxima registrada:       {w.max()*100:.1f}%")
+    print("-" * 65)
+    print(f"{'Estratégia / Retorno Global':<30} | {'Retorno Acumulado':<15}")
+    print("-" * 65)
+    print(f"{'K-nesian (Modelo)':<30} | {acum_mod*100:+15.2f}%")
+    print(f"{'Benchmark Híbrido Dinâmico':<30} | {acum_bench*100:+15.2f}%")
+    print(f"{'Alpha Total Gerado':<30} | {(acum_mod - acum_bench)*100:+15.2f}%")
+    print("="*65)
     
-    print("\n" + "="*60)
-    print("🔍 PERFORMANCE ATTRIBUTION: DE ONDE VEM O ALPHA?")
-    print("="*60)
-    print(f"O K-nesian passou {pct_tempo_defesa:.1f}% do tempo em modo DEFESA (Alguma Exposição ao CDI).")
-    print(f"O K-nesian passou {pct_tempo_ataque:.1f}% do tempo em modo ATAQUE (100% Risco).")
-    print("-" * 60)
-    print("1. ALPHA DE MARKET TIMING (Quando o modelo assumiu Defesa):")
-    print(f"   Retorno K-nesian:         {acum_defesa_mod*100:+.2f}%")
-    print(f"   Retorno Ibovespa:         {acum_defesa_bench*100:+.2f}%")
-    print(f"   -> Valor Agregado:        {(acum_defesa_mod - acum_defesa_bench)*100:+.2f}%")
-    print("")
-    print("2. ALPHA DE STOCK PICKING (Quando o modelo foi pro Risco total):")
-    print(f"   Retorno K-nesian Ações:   {acum_ataque_mod*100:+.2f}%")
-    print(f"   Retorno Ibovespa Ações:   {acum_ataque_bench*100:+.2f}%")
-    print(f"   -> Valor Agregado:        {(acum_ataque_mod - acum_ataque_bench)*100:+.2f}%")
-    print("="*60 + "\n")
-
+    # Visão por Faixas de Exposição (para entender o comportamento tático)
+    df['Faixa_Exposicao'] = pd.cut(
+        w, 
+        bins=[-0.01, 0.25, 0.75, 0.99, 1.01], 
+        labels=['Defesa Forte (<25%)', 'Defesa Parcial (25-75%)', 'Ataque Parcial (75-99%)', 'Ataque Total (100%)']
+    )
+    
+    print("\n📊 **Comportamento por Regime de Exposição:**")
+    print(f"{'Regime':<28} | {'Tempo (%):':<10} | {'Retorno Médio Diário':<20}")
+    print("-" * 65)
+    
+    resumo_faixas = df.groupby('Faixa_Exposicao', observed=True).agg(
+        Tempo=('Retorno_Modelo', 'count'),
+        Ret_Medio_Mod=('Retorno_Modelo', lambda x: (x.mean() * 100))
+    )
+    resumo_faixas['Pct_Tempo'] = (resumo_faixas['Tempo'] / len(df)) * 100
+    for faixa, row in resumo_faixas.iterrows():
+        print(f"{str(faixa):<28} | {row['Pct_Tempo']:9.1f}% | {row['Ret_Medio_Mod']:+18.4f}% ao dia")
+    
+    print("="*65 + "\n")
 
 def plot_evolucao_alocacao(df_resultado):
     """
@@ -959,8 +942,8 @@ def plot_dashboard_rodadas(df_rodadas):
         x=df['Ano'], y=df['Calmar'],
         name='Índice de Calmar',
         mode='lines+markers+text',
-        marker=dict(color='yellow', size=8),
-        line=dict(width=2, dash='dot'),
+        marker=dict(color='darkorange', size=8),
+        line=dict(width=2, dash='dash'),
         text=df['Calmar'].apply(lambda x: f'{x:.2f}'),
         textposition='bottom center'
     ), row=2, col=1)

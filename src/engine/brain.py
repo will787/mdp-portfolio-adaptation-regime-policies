@@ -21,12 +21,16 @@ class MarketBrain:
         self.mapa_risco = {}
         self.transmat_orignal = None
         self.transmat_ordenada = None
+        self.colunas_hmm = None
+        self.dados_treino_original = None
         self.transition_probs = {}
         self.carteiras = {}
         self.recompensas = {}
         self.metricas_recompensa = {}
         self.politica_otima = {}
         self.X_treino_scaled = None
+        self.relatorios_regimes = None
+        self.regimes = self.criar_regimes()
 
     def treinar_e_otimizar(self, dados_treino_hmm, retornos_sinal, colunas_hmm, colunas_operacao,
                             tempo_regime, metrica_otimizacao, limite_max_por_ativo):
@@ -36,28 +40,50 @@ class MarketBrain:
         ativos_vivos = [ativo for ativo in ativos_risco if df_treino_acoes[ativo].std() > 1e-6]
 
         X_treino = dados_treino_hmm[colunas_hmm].values
+        self.dados_treino_original = dados_treino_hmm[colunas_hmm].copy()
         self.X_treino_scaled = self.scaler.fit_transform(X_treino)
+        self.colunas_hmm = colunas_hmm
 
         matriz_persistencia_085 = np.array([
-        [0.85, 0.12, 0.02, 0.01],  # Bull Market: alta persistência, com alguma chance de ir para Transição
-        [0.08, 0.77, 0.12, 0.03],  # Transição: mais volátil, pode ir tanto para Bull quanto para Correção
-        [0.02, 0.10, 0.78, 0.10],  # Correção: espaço intermediário de estresse
-        [0.01, 0.02, 0.12, 0.85]   # Crise (Vol Extrema): alta inércia de fundo do poço, mas destrava se começar a recuperar
+        [0.85, 0.12, 0.02, 0.01], 
+        [0.08, 0.77, 0.12, 0.03],
+        [0.02, 0.10, 0.78, 0.10], 
+        [0.01, 0.02, 0.12, 0.85] 
         ])
 
         self.modelo.transmat_ = matriz_persistencia_085
         self.modelo.init_params = 'smc'
         self.modelo.fit(self.X_treino_scaled)
+        self.transmat_orignal = self.modelo.transmat_
 
-        volatilidades = [self.modelo.means_[i][1] for i in range(len(self.estados_possiveis))]
-        ordem_risco = np.argsort(volatilidades)
-        self.mapa_risco = {estado_hmm: nivel_risco for nivel_risco, estado_hmm in enumerate(ordem_risco)}
 
-        self.transmat_original = self.modelo.transmat_
+        #bloco antigo, fazia o ranking somente pelo ibovespa
+        #volatilidades = [self.modelo.means_[i][1] for i in range(len(self.estados_possiveis))]
+        #ordem_risco = np.argsort(volatilidades)
+        #self.mapa_risco = {estado_hmm: nivel_risco for nivel_risco, estado_hmm in enumerate(ordem_risco)}
+
+        #self.transmat_original = self.modelo.transmat_
+        #self.transition_probs = {
+        #    (i, j): self.transmat_original[np.where(ordem_risco == i)[0][0]][np.where(ordem_risco == j)[0][0]]
+        #    for i in self.estados_possiveis for j in self.estados_possiveis
+        #}            
+
+        self.mapa_risco = self.classificar_risco_regime()
+
+
+        estados_por_risco = {
+            risco: estado_hmm 
+            for estado_hmm, risco in self.mapa_risco.items()
+        }
+
         self.transition_probs = {
-            (i, j): self.transmat_original[np.where(ordem_risco == i)[0][0]][np.where(ordem_risco == j)[0][0]]
-            for i in self.estados_possiveis for j in self.estados_possiveis
-        }                              
+            (i, j): self.transmat_orignal[
+                estados_por_risco[i],
+                estados_por_risco[j]
+            ]
+            for j in self.estados_possiveis 
+            for i in self.estados_possiveis
+        }
 
         n_states = len(self.estados_possiveis)
         self.transmat_ordenada = np.zeros((n_states, n_states))
@@ -66,7 +92,7 @@ class MarketBrain:
                 self.transmat_ordenada[i,j] = self.transition_probs[(i,j)]
 
         estado_treino = [self.mapa_risco[s] for s in self.modelo.predict(self.X_treino_scaled)]
-        df_treino_acoes = df_treino_acoes.assign(Estado_HMM=estado_treino)
+        df_treino_acoes = df_treino_acoes.assign(Estado_Regime=estado_treino)
 
         self.carteiras, nomes_carteiras = criar_carteiras_por_regime(
             df_treino_acoes, self.estados_possiveis, ativos_vivos, ativos_risco, 
@@ -79,7 +105,8 @@ class MarketBrain:
             acoes_disponiveis_dinamico=self.carteiras,
             colunas_operacao=colunas_operacao,
             tempo_regime=tempo_regime,
-            metrica_otimizacao=metrica_otimizacao
+            metrica_otimizacao=metrica_otimizacao,
+            regimes = self.regimes
         )
 
         _, self.politica_otima = belmann_equation(
@@ -88,3 +115,62 @@ class MarketBrain:
             self.transition_probs,
             self.recompensas
         )
+
+
+    def classificar_risco_regime(self):
+
+        estados_preditos = self.modelo.predict(self.X_treino_scaled)
+
+        df = self.dados_treino_original.copy()
+
+        df['estado'] = estados_preditos
+
+        estatisticas = df.groupby("estado").agg({
+            "ibovespa_br_returns": "mean",
+            "petro_brent_zscore": "mean",
+            "vix_zscore": "mean",
+            "risco_brasil_zscore": "mean",
+            "dolar_cambio_livre_p_tax_zscore": "mean"
+        })
+
+
+        score = (
+            -0.35 * estatisticas["ibovespa_br_returns"] +
+            0.20 * estatisticas["vix_zscore"] +
+            0.20 * estatisticas["risco_brasil_zscore"] +
+            0.15 * estatisticas['dolar_cambio_livre_p_tax_zscore'] +
+            0.10 * estatisticas["petro_brent_zscore"]
+
+        )
+
+        ranking = score.rank(method='first').astype(int) - 1
+
+        estatisticas['score_risco'] = score
+        estatisticas['nivel_risco'] = ranking
+
+        self.relatorios_regimes = estatisticas
+        return ranking.to_dict()
+
+    def criar_regimes(self):
+        return {
+            0: {
+                "nome": "Bull_Baixa_Vol",
+                "metrica": "omega",
+                "descricao": "Ambiente favorável, baixa volatilidade"
+            },
+            1: {
+                "nome": "Transicao_Normal",
+                "metrica": "sortino",
+                "descricao": "Mercado normal ou transição"
+            },
+            2: {
+                "nome": "Correcao",
+                "metrica": "cvar",
+                "descricao": "Ambiente defensivo, risco elevado"
+            },
+            3: {
+                "nome": "Crise_Panico",
+                "metrica": "min_vol",
+                "descricao": "Estresse extremo, preservação de capital"
+            }
+        }

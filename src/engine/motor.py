@@ -94,10 +94,10 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
         historico["rodadas"].append({
             'Rodada_Teste': f"{ano_teste_inicio}-{ano_teste_fim}",
             'Anos_Treino_Inclusos': int(dados_treino_hmm.index.year.nunique()),
-            'Politica_Estado_0': brain.politica_otima.get(0, "100_CDI"),
-            'Politica_Estado_1': brain.politica_otima.get(1, "100_CDI"),
-            'Politica_Estado_2': brain.politica_otima.get(2, "100_CDI"),
-            'Politica_Estado_3': brain.politica_otima.get(3, "100_CDI"),
+            'Politica_Regime_0': brain.politica_otima.get(0, "100_CDI"),
+            'Politica_Regime_1': brain.politica_otima.get(1, "100_CDI"),
+            'Politica_Regime_2': brain.politica_otima.get(2, "100_CDI"),
+            'Politica_Regime_3': brain.politica_otima.get(3, "100_CDI"),
             'Composicao_Est_0': comp_0, 'Composicao_Est_1': comp_1, 'Composicao_Est_2': comp_2, 'Composicao_Est_3': comp_3,
             'Exposicao_Acoes': round(exposicao_media_acoes, 2),
             'Retorno_Teste_Modelo': round(np.prod(1 + retornos_modelo) - 1, 2),
@@ -105,7 +105,8 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
             'Retorno_Teste_Bench_Hibrido': round(np.prod(1 + retornos_bench_hibrido) -1, 2),
             'Alpha_Rodada': round((np.prod(1 + retornos_modelo) - 1) - (np.prod(1 + retornos_bench) - 1), 2),
             'CAGR': round(cagr_m, 2), 'Volatilidade': round(vol_m, 2), 'Sharpe': round(sharpe_m, 2),
-            'Sortino': round(sortino_m, 2), 'Max_Drawdown': round(dd_m, 2), 'Calmar': round(calmar_m, 2)
+            'Sortino': round(sortino_m, 2), 'Max_Drawdown': round(dd_m, 2), 'Calmar': round(calmar_m, 2),
+            "Mapa_Risco": brain.mapa_risco
         })
 
 
