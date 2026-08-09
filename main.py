@@ -75,6 +75,7 @@ df_features = df_features.loc[datas_comuns].sort_index()
 retornos_sinal = retornos_sinal.loc[datas_comuns].sort_index()
 retornos_execucao = retornos_execucao.loc[datas_comuns].sort_index()
 
+
 # %%
 
 df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forward_motor(
@@ -89,13 +90,13 @@ df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forw
     metrica_otimizacao='adaptativo',
     anos_memoria_treino=4, 
     tempo_regime=21, 
-    limite_max_por_ativo=0.08,
+    limite_max_por_ativo=0.10,
     limite_min_por_ativo = 0.03,
     custo_corretagem=0.005,             
-    custo_slippage=0.003,              
+    custo_slippage=0.005,              
     capital_inicial=100000,
     numero_ativos=20,
-    matriz_transicao="adaptativa"
+    matriz_transicao="fixa"
 )
 # %%
 vis.plot_full_history(df_resultado, ano_inicio=2010)
@@ -114,6 +115,115 @@ df_rodadas.to_csv('df_rodadas.csv')
 df_recompensas.to_csv('df_recompensas.csv')
 df_carteiras.to_csv('df_carteiras.csv')
 df_pesos.to_csv('df_pesos.csv')
+
+# %%
+import plotly.graph_objects as go
+import pandas as pd
+
+def plot_evolucao_exposicao_com_regimes(df_resultado):
+    """
+    Gera um gráfico dinâmico de área empilhada (Ações vs CDI)
+    com faixas coloridas no fundo representando os Regimes do HMM.
+    """
+    df_plot = df_resultado.copy()
+    
+    # Garante a escala de 0 a 100% para o gráfico
+    df_plot['Exposicao_Acoes_Pct'] = df_plot['Exposicao_Acoes'] * 100
+    df_plot['Exposicao_CDI_Pct'] = 100 - df_plot['Exposicao_Acoes_Pct']
+    
+    fig = go.Figure()
+    
+    # 1. Camada de Área Empilhada: Caixa (CDI)
+    fig.add_trace(go.Scatter(
+        x=df_plot.index, 
+        y=df_plot['Exposicao_CDI_Pct'],
+        mode='lines',
+        name='Caixa (CDI)',
+        stackgroup='one',
+        groupnorm='percent',
+        marker_color='rgba(230, 230, 230, 0.5)', # Cinza neutro
+        line=dict(width=0.5)
+    ))
+    
+    # 2. Camada de Área Empilhada: Exposição em Ações
+    fig.add_trace(go.Scatter(
+        x=df_plot.index, 
+        y=df_plot['Exposicao_Acoes_Pct'],
+        mode='lines',
+        name='Exposição em Ações',
+        stackgroup='one',
+        marker_color='rgba(31, 119, 180, 0.85)', # Azul institucional contínuo
+        line=dict(width=1)
+    ))
+
+    # =========================================================================
+    # --- MAPEAMENTO DOS REGIMES DO HMM (FAIXAS VERTICAIS DE BACKGROUND) ---
+    # =========================================================================
+    # Configuração de cores suaves (transparentes) para o fundo não cobrir os dados
+    cores_regimes = {
+        0: 'rgba(46, 204, 113, 0.08)',   # Verde muito suave (Bull_Baixa_Vol)
+        1: 'rgba(52, 152, 219, 0.05)',   # Azul muito suave (Transicao_Normal)
+        2: 'rgba(241, 196, 15, 0.08)',   # Amarelo muito suave (Correcao)
+        3: 'rgba(231, 76, 60, 0.12)'     # Vermelho visível (Crise_Panico)
+    }
+    
+    # Identifica os pontos exatos onde o regime macro mudou na história
+    df_plot['Mudou_Regime'] = df_plot['Regime_Macro'].diff().fillna(0) != 0
+    datas_mudanca = df_plot[df_plot['Mudou_Regime']].index.tolist()
+    
+    # Garante os limites inicial e final da série histórica
+    datas_limite = [df_plot.index[0]] + datas_mudanca + [df_plot.index[-1]]
+    
+    # Desenha as caixas (shapes) verticais no layout do Plotly
+    shapes = []
+    for idx in range(len(datas_limite) - 1):
+        data_ini = datas_limite[idx]
+        data_fim = datas_limite[idx + 1]
+        
+        # Pega o regime vigente naquele intervalo de tempo
+        regime_vigente = df_plot.loc[data_ini, 'Regime_Macro']
+        
+        shapes.append(dict(
+            type="rect",
+            xref="x",
+            yref="paper", # Trava o topo e o fundo do shape na moldura do gráfico
+            x0=data_ini,
+            y0=0,
+            x1=data_fim,
+            y1=1,
+            fillcolor=cores_regimes.get(regime_vigente, 'rgba(0,0,0,0)'),
+            line=dict(width=0), # Sem bordas para não poluir
+            layer="below" # Força as faixas coloridas a ficarem ATRÁS das áreas empilhadas
+        ))
+        
+    # Adiciona traços invisíveis na legenda apenas para mapear a cor de cada regime pro usuário
+    nomes_regimes = {0: "Bull Market", 1: "Transição", 2: "Correção", 3: "Crise/Pânico"}
+    for reg, cor in cores_regimes.items():
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None], mode='markers',
+            marker=dict(size=10, color=cor.replace('0.', '0.9'), symbol='square'), # Cor opaca na legenda
+            name=f"Regime: {nomes_regimes[reg]}",
+            showlegend=True
+        ))
+
+    # Configurações estéticas e eixos
+    fig.update_layout(
+        title='<b>Evolução da Alocação Dinâmica vs Regimes do HMM</b><br><sup>Rotação tática sob estresse: fundos coloridos indicam o regime de mercado determinado pelo modelo</sup>',
+        xaxis_title='Tempo',
+        yaxis_title='Alocação do Capital (%)',
+        hovermode='x unified',
+        template='plotly_white',
+        shapes=shapes, # Injeta os backgrounds calculados
+        yaxis=dict(ticksuffix='%', range=[0, 100]),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5) # Legenda na parte inferior interna
+    )
+    
+    fig.show()
+
+# Chamada da nova função
+plot_evolucao_exposicao_com_regimes(df_resultado)
+
+
 
 # %%
 for regime, grupo in df_resultado.groupby("Nome_Regime"):
@@ -403,30 +513,31 @@ metricas_stress = []
 
 metricas_stress_com_duration = []
 
-for limite in [0.08, 0.09, 0.10]:
+for limite in [0.08,0.10]:
     print(f"Processando Limite: {limite*100:.1f}%...")
-    for memoria in [3,4]:
-        print(f"Processando Durações: Memória = {memoria} | Limite = {limite*100:.1f}%...")
+    for regime in ["fixa", "adaptativa"]:
+        print(f"Processando Durações: Regime = {regime} | Limite = {limite*100:.1f}%...")
         for slippage in [0.003, 0.005]:
-            print(f"Processando Durações: Memória = {memoria} | Slippage = {slippage*100:.1f}%...")
+            print(f"Processando Durações: Memória = {regime} | Slippage = {slippage*100:.1f}%...")
             
             # 1. Roda o seu motor quantitativo
             df_res, _, _, _, _ = run_walk_forward_motor(
                 df_features=df_features, 
-                retornos_sinal=retornos_sinal,
-                retornos_execucao=retornos_execucao,
-                acoes_disponiveis=ativos_risco,
-                colunas_hmm=df_features.columns,
+                retornos_sinal=retornos_sinal,         # Usado no Treino / HMM / Bellman / Scores
+                retornos_execucao=retornos_execucao,   # Usado estritamente no Teste Diário físico
+                acoes_disponiveis=ativos_risco, 
+                colunas_hmm=df_features.columns, 
                 colunas_operacao=colunas_operacao,
-                ano_inicio_operacao=2010,
+                ano_inicio_operacao=2010, 
                 janela_teste=1, 
                 metrica_otimizacao='adaptativo',
                 tempo_regime=22, 
                 limite_max_por_ativo=limite,
                 custo_corretagem=0.005,          
                 capital_inicial=100000,
-                anos_memoria_treino=memoria,
-                custo_slippage=slippage
+                anos_memoria_treino=4,
+                custo_slippage=slippage,
+                matriz_transicao=regime
             )
             
             df_res.index = pd.to_datetime(df_res.index)
@@ -456,8 +567,8 @@ for limite in [0.08, 0.09, 0.10]:
             mean_duration_meses = mean_duration_dias / 21.0
             
             metricas_stress_com_duration.append({
-                "Memória (Anos)": memoria,
                 "Slippage (%)": f"{slippage * 100:.1f}%",
+                "Regime": regime,
                 "Limite (%)": f"{limite * 100:.1f}%",
                 "CAGR": f"{cagr * 100:.2f}%",
                 "Sharpe": f"{sharpe:.2f}",

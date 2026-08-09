@@ -5,6 +5,11 @@ from hmmlearn import hmm
 from src.engine.bellman_equation import belmann_equation
 from src.engine.wallets import criar_carteiras_por_regime, calcular_metricas_bellman
 
+import warnings
+from pandas.errors import PerformanceWarning
+warnings.filterwarnings('ignore', category=PerformanceWarning)
+
+
 
 class MarketBrain:
     """"
@@ -46,33 +51,7 @@ class MarketBrain:
         self.colunas_hmm = colunas_hmm
 
         matriz_persistencia = self.matriz_persistencia()
-
-        if matriz_transicao == "fixa":
-            self.modelo.transmat_ = matriz_persistencia.copy()
-            self.modelo.params = "smc"
-
-            self.modelo.init_params = "smc" #inicializacao
-            self.modelo.fit(self.X_treino_scaled)
-            self.transmat_orignal = matriz_persistencia.copy()
-            self.transmat_ordenada = matriz_persistencia.copy()
-        elif matriz_transicao == "adaptativa":
-            self.modelo.init_params = "stmc"
-            self.modelo.params = "stmc"
-
-            self.modelo.fit(self.X_treino_scaled)
-
-            self.transmat_orignal = (
-                self.modelo.transmat_.copy()
-            )
-
-            self.transmat_ordenada = (
-                self.modelo.transmat_.copy()
-            )
-        else:
-            raise ValueError(
-                "matriz_transicao deve ser "
-                "'fixa' ou 'adaptativa'"
-            )
+        self.escolha_matriz(matriz_transicao, matriz_persistencia)
 
 
         #bloco antigo, fazia o ranking somente pelo ibovespa
@@ -87,7 +66,6 @@ class MarketBrain:
         #}            
 
         self.mapa_risco = self.classificar_risco_regime()
-
 
         estados_por_risco = {risco: estado_hmm for estado_hmm, risco in self.mapa_risco.items()}
 
@@ -107,7 +85,7 @@ class MarketBrain:
                 self.transmat_ordenada[i,j] = self.transition_probs[(i,j)]
 
         estado_treino = [self.mapa_risco[s] for s in self.modelo.predict(self.X_treino_scaled)]
-        df_treino_acoes = df_treino_acoes.assign(Estado_Regime=estado_treino)
+        df_treino_acoes = pd.DataFrame(df_treino_acoes.assign(Estado_Regime=estado_treino))
 
         self.carteiras, nomes_carteiras = criar_carteiras_por_regime(
             df_treino_acoes, self.estados_possiveis, ativos_vivos, ativos_risco, 
@@ -131,6 +109,33 @@ class MarketBrain:
             self.transition_probs,
             self.recompensas
         )
+    def escolha_matriz(self, matriz_transicao, matriz_persistencia):
+        if matriz_transicao == "fixa":
+            self.modelo.transmat_ = matriz_persistencia.copy()
+            self.modelo.params = "smc"
+
+            self.modelo.init_params = "smc" #inicializacao
+            self.modelo.fit(self.X_treino_scaled)
+            self.transmat_orignal = matriz_persistencia.copy()
+            self.transmat_ordenada = matriz_persistencia.copy()
+        elif matriz_transicao == "adaptativa":
+            self.modelo.init_params = "smc" #t
+            self.modelo.params = "smc" #t
+
+            self.modelo.fit(self.X_treino_scaled)
+
+            self.transmat_orignal = (
+                self.modelo.transmat_.copy()
+            )
+
+            self.transmat_ordenada = (
+                self.modelo.transmat_.copy()
+            )
+        else:
+            raise ValueError(
+                "matriz_transicao deve ser "
+                "'fixa' ou 'adaptativa'"
+            )
 
     def matriz_persistencia(self):
         return np.array([

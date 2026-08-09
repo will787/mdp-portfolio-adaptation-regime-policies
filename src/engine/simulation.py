@@ -3,7 +3,7 @@ import sys
 from src.engine.strategy import executar_estrategia
 from src.engine.benchmark import benchmark_hibrido, atribuicao_benchmark_dinamico
 from src.engine.brain import MarketBrain
-
+import pandas as pd
 
 
 def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, colunas_hmm, colunas_operacao, tempo_regime,
@@ -79,6 +79,19 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
         brain.politica_otima[99] = 'Alvo_Suavizado'
         brain.recompensas[(regime_atual, 'Alvo_Suavizado')] = reward_sintetico
 
+        if isinstance(custo_slippage, pd.DataFrame):
+            pesos_atuais = portfolio.pesos().drop("Clearing", errors="ignore").to_dict()
+            ativos_operados = list(set(pesos_atuais.keys()) | set(pesos_sinteticos.keys()))
+            ativos_operados = [a for a in ativos_operados if a != "CDI" and  a != "Clearing"] 
+            if ativos_operados and data_atual in custo_slippage.index:
+                slippage_hoje = custo_slippage.loc[data_atual, ativos_operados].mean()
+                custo_slippage_dia = min(slippage_hoje, 0.05)
+            else:
+                custo_slippage_dia = 0.0010
+        else:
+            custo_slippage_dia = custo_slippage
+            
+
         resultado = executar_estrategia(
             portfolio=portfolio,
             retornos_dia=df_teste_acoes.iloc[i].to_dict(),
@@ -95,7 +108,7 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
             margem_troca=margem_troca,
             aliquota_cdi=aliquota_cdi,
             custo_corretagem=custo_corretagem,
-            custo_slippage=custo_slippage,
+            custo_slippage=custo_slippage_dia, #custo_slippage
             reward_sintetico=reward_sintetico
         )
 

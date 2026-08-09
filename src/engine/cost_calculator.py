@@ -16,7 +16,7 @@ def calcular_turnover(pesos_atuais: dict, pesos_alvo: dict) -> float:
     return desvio_total / 2
 
 
-def calcular_custo_transicao(turnover:float, custo_corretagem:float, custo_slippage:float):
+def calcular_custo_transicao(turnover:float, custo_corretagem:float, custo_slippage:float) -> dict:
     """"
             Computa o impacto financeiro percentual com base na taxas e no giro realizado.
     """

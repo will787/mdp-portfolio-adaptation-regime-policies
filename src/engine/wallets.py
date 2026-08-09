@@ -57,6 +57,10 @@ def criar_carteiras_por_regime(df_treino_acoes, estados_possiveis, ativos_vivos,
             downside = np.sqrt((ret_negativo ** 2).mean()) * np.sqrt(252)
             score = (ret -0.5 * drag - 0.3 * downside)
 
+            for ativo in ativos_vivos:
+                if retornos_ativos[ativo].std() < 1e-5:
+                    score[ativo] = -999.00
+
             topx = score.nlargest(numero_ativos).index
             retornos_fatiados = retornos_ativos[topx]
             score_fatiado = score[topx]

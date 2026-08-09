@@ -20,6 +20,27 @@ def formatar_composicao(nome_carteira, carteiras_dict):
 
     return ' | '.join(comp)
 
+def matriz_slippage_dinamico(retornos_sinal: pd.DataFrame, janela_vol: int = 21,  
+                             slippage_base:float = 0.0010, multiplicador_estresse: float = 2.0, 
+                             slippage_maximo: float = 0.05) -> pd.DataFrame:
+    """"
+        Resolve a dor do otimismo de execução em crises e ativos mortos. 
+        Gera uma matriz temporal onde o custo de slippage acompanha a volatilidade real de cada ativo.
+    """
+
+    vol_historica = retornos_sinal.rolling(janela_vol).std()
+    matriz_slippage = slippage_base + (multiplicador_estresse * vol_historica ** 2)
+    matriz_slippage = matriz_slippage.clip(upper=slippage_maximo)
+
+    # tratamento ativos mortos -> se o ativo sumiu/Nan o custo de liquidação é o teto de 5%
+    matriz_slippage = matriz_slippage.fillna(slippage_maximo)
+
+    if "CDI" not in matriz_slippage.columns:
+        matriz_slippage["CDI"] = 0.0
+    return matriz_slippage
+
+
+
 
 def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes_disponiveis, colunas_hmm, colunas_operacao, 
                            ano_inicio_operacao=2005, janela_teste=1, metrica_otimizacao='adaptativo', 
@@ -32,6 +53,9 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
     carteira_pendente_acumulada=None
     carteira_acumulada = "100_CDI"
     ano_fim_dados = int(df_features.index.year.max() -1) #tiramos -1 pra nao pegar dados de 2026 
+
+    matriz_slippage_real = matriz_slippage_dinamico(retornos_sinal, janela_vol=tempo_regime,  
+                                                    slippage_base=custo_slippage, multiplicador_estresse=2.0, slippage_maximo=0.05)
 
 
     for ano_teste_inicio in range(ano_inicio_operacao, ano_fim_dados + 1, janela_teste):
@@ -58,6 +82,7 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
         df_teste_acoes = retornos_execucao.loc[dados_teste_hmm.index].copy()
         df_teste_acoes = df_teste_acoes.join(df_features['ibovespa_br_returns'].rename('Retorno_Ibov'), how='inner')
 
+        slippage_janela_teste = matriz_slippage_real.loc[dados_teste_hmm.index]
 
         portfolio_global, logs_backtest, logs_carteiras, cart_atual_ac, cart_pend_ac = simular_janela_teste(
             portfolio=portfolio_global, 
@@ -68,7 +93,7 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
             colunas_operacao=colunas_operacao, 
             tempo_regime=tempo_regime, 
             custo_corretagem=custo_corretagem, 
-            custo_slippage=custo_slippage,
+            custo_slippage=slippage_janela_teste,
             carteira_inicial=carteira_acumulada,
             carteira_pendente_inicial=carteira_pendente_acumulada,
             margem_troca=margem_troca,

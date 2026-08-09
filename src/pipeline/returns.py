@@ -14,40 +14,30 @@ sys.path.insert(0, str(ROOT))
 
 
 def pipeline_returns(tickers, BASE_DIR):
-    """Módulo 2: Prepara as arenas de Sinais e Execução (Ações + Caixa)"""
-
+    """Módulo 2: Prepara as arenas de Sinais e Execução de forma limpa e estável"""
     print("2. Construindo Pipeline de Retornos Operacionais...")
+    import yfinance as yf
+    
     caminho_selic = BASE_DIR / 'data/bronze/dados_bacen.csv'
-    print(f"Arquivo Selic: {caminho_selic}")
-    dados_completos = yf.download(
-        tickers,
-        start="2002-08-31",
-        end="2026-06-01",
-        auto_adjust=False
-    )
+    dados_completos = yf.download(tickers, start="2002-08-31", end="2026-06-01", auto_adjust=False)
 
     if dados_completos.index.tz is not None:
         dados_completos.index = dados_completos.index.tz_localize(None)
     dados_completos.index.name = "data"
 
     dados_adj = dados_completos["Adj Close"].ffill()
-    retornos_sinal = dados_adj.pct_change().fillna(0.0)
-    retornos_sinal.index.name = "data"
+    retornos_sinal = dados_adj.pct_change().fillna(0.0) # Seguro: Retorno 0.0 mantém a média estável
 
-    dados_close = dados_completos["Adj Close"].ffill()
-    retornos_execucao = dados_close.pct_change().fillna(0.0)
-    retornos_execucao.index.name = "data"
+    retornos_execucao = retornos_sinal.copy()
+    
     df_bacen = pd.read_csv(caminho_selic, index_col="data", parse_dates=True)
     selic_diaria_limpa = (df_bacen['taxa_selic'] / 100.0).ffill().fillna(0.0)
-
     cdi_alinhado = selic_diaria_limpa.reindex(retornos_sinal.index).ffill().fillna(0.0)
+    
     retornos_sinal["CDI"] = cdi_alinhado
     retornos_execucao["CDI"] = cdi_alinhado
 
-    ativos_risco = dados_adj.columns.tolist()
-    colunas_operacao = ativos_risco + ['CDI']
-
-    return retornos_sinal, retornos_execucao, ativos_risco, colunas_operacao
+    return retornos_sinal, retornos_execucao, dados_adj.columns.tolist(), dados_adj.columns.tolist() + ['CDI']
 
 
 
