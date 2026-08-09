@@ -1,13 +1,13 @@
 import numpy as np
 import sys
-from src.engine.strategy import executar_strategy
+from src.engine.strategy import executar_estrategia
 from src.engine.benchmark import benchmark_hibrido, atribuicao_benchmark_dinamico
 from src.engine.brain import MarketBrain
 
 
 
 def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, colunas_hmm, colunas_operacao, tempo_regime,
-                         custo_corretagem, custo_slippage, carteira_inicial, carteira_pendente_inicial ,margem_troca=0.20, alpha_ema=0.20):
+                         custo_corretagem, custo_slippage,carteira_inicial, carteira_pendente_inicial ,margem_troca=0.20, alpha_ema=0.20, limite_min_por_ativo=0.03, aliquota_cdi=0.225):
   
     """"
         Simulação do pregão dia a dia de forma isolada.
@@ -22,43 +22,38 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
     logs_diarios = []
     logs_backtest = []
     logs_carteiras = []
-    prob_estados_hoje_ordenado = None
 
     for i in range(1, len(df_teste_acoes)):
 
         data_atual = df_teste_acoes.index[i]
-
-
         X_scaled_ontem = brain.scaler.transform(X_teste_cru[i - 1].reshape(1, -1)).flatten()
         historico_x.append(X_scaled_ontem)
-
         prob_s_ontem = brain.modelo.predict_proba(np.array(historico_x))[-1]
+        estado_hmm_atual = np.argmax(prob_s_ontem)
 
-        prob_estados_hoje_ordenado = np.zeros(len(brain.estados_possiveis))
-        for estado_cru_idx, prob in enumerate(prob_s_ontem):
-            nivel_risco = brain.mapa_risco[estado_cru_idx]
-            prob_estados_hoje_ordenado[nivel_risco] = prob
+        prob_regimes_hoje = np.zeros(len(brain.estados_possiveis))
+        for estado_hmm_idx, prob in enumerate(prob_s_ontem):
+            regime = brain.mapa_risco[estado_hmm_idx]
+            prob_regimes_hoje[regime] = prob
 
         #estado_cru_mais_provavel = np.argmax(prob_estados_hoje_cru)
-        estado_hoje = np.argmax(prob_estados_hoje_ordenado)
+        regime_atual = np.argmax(prob_regimes_hoje)
         #P3 = np.linalg.matrix_power(brain.transmat_original, 3)
         #prob_estado_futuro = P3[estado_hoje]
 
         P3_ordenada = np.linalg.matrix_power(brain.transmat_ordenada,3)
-        prob_estado_futuro = np.dot(prob_estados_hoje_ordenado, P3_ordenada)
+        prob_regimes_futuro = prob_regimes_hoje @ P3_ordenada
 
         if prob_suavizada is None:
-            prob_suavizada = prob_estado_futuro.copy()
+            prob_suavizada = prob_regimes_futuro.copy()
         else: 
-            prob_suavizada = alpha_ema * prob_estado_futuro + (1 - alpha_ema) * prob_suavizada
+            prob_suavizada = alpha_ema * prob_regimes_futuro + (1 - alpha_ema) * prob_suavizada
 
         
         soma_prob = np.sum(prob_suavizada)
-
         if soma_prob > 0:
             prob_suavizada /= soma_prob
         
-            
         pesos_sinteticos = {ativo: 0.0 for ativo in colunas_operacao}
         reward_sintetico = 0.0
 
@@ -75,19 +70,19 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
 
         peso_residual_cortado = 0.0 #limpamos o que ficaria uma pequena porcentagem de caixa em um cenario 2% de peso
         for ativo, peso in pesos_sinteticos.items():
-            if ativo != 'CDI' and peso < 0.02:
+            if ativo != 'CDI' and peso < limite_min_por_ativo:
                 peso_residual_cortado += peso
                 pesos_sinteticos[ativo] = 0.0
 
         pesos_sinteticos['CDI'] += peso_residual_cortado
-        brain.carteiras['Alvo_Suavizado'] = pesos_sinteticos
+        brain.carteiras['Alvo_Suavizado'] = pesos_sinteticos.copy()
         brain.politica_otima[99] = 'Alvo_Suavizado'
-        brain.recompensas[(estado_hoje, 'Alvo_Suavizado')] = reward_sintetico
+        brain.recompensas[(regime_atual, 'Alvo_Suavizado')] = reward_sintetico
 
-        resultado = executar_strategy(
+        resultado = executar_estrategia(
             portfolio=portfolio,
             retornos_dia=df_teste_acoes.iloc[i].to_dict(),
-            estado_hoje=estado_hoje,
+            estado_hoje=regime_atual,
             estado_futuro=99, 
             politica_otima=brain.politica_otima,
             recompensas=brain.recompensas,
@@ -98,9 +93,10 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
             dias_holding=dias_holding,
             holding_minimo=tempo_regime,
             margem_troca=margem_troca,
-            aliquota_cdi=0.225,
+            aliquota_cdi=aliquota_cdi,
             custo_corretagem=custo_corretagem,
-            custo_slippage=custo_slippage
+            custo_slippage=custo_slippage,
+            reward_sintetico=reward_sintetico
         )
 
         patrimonio_anterior = portfolio.patrimonio if i == 1 else logs_backtest[-1]["Patrimonio"]
@@ -129,7 +125,8 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
             'Reward_delta': reward_nova - reward_atual,
             'Margem_exigida': resultado["margem_exigida"],
             'Troca_Aprovada': acao_escolhida != carteira_atual and reward_nova > reward_atual * (1 + margem_troca),
-            'Prob_Estado_Futuro': np.max(prob_estado_futuro),
+            "Regime_Futuro_Provavel": np.argmax(prob_suavizada),
+            "Prob_Regimes": prob_suavizada.copy(),
             'Carteira_Atual': carteira_atual,
             'Carteira_Pendente': carteira_pendente                    
         })
@@ -139,17 +136,20 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
         logs_diarios.append({
             "Data": data_atual,
             **resultado_log,
-            "Regime_Macro": estado_hoje,
-            "Nome_Regime": brain.regimes[estado_hoje]["nome"],
+            "Regime_Macro": regime_atual,
+            "Nome_Regime": brain.regimes[regime_atual]["nome"],
         })
 
         capital_clearing = resultado['snapshot']['Patrimonio'] - resultado['snapshot']['CDI'] - resultado['snapshot']['Capital_Acoes']
 
         logs_backtest.append({
             "Data": data_atual,
-            "Regime_Macro": estado_hoje,
-            "Nome_Regime": brain.regimes[estado_hoje]["nome"],
-            "Regime_Metrica": brain.regimes[estado_hoje]["metrica"],
+            "Estado_HMM": estado_hmm_atual,
+            "Regime_Macro": regime_atual,
+            "Nome_Regime": brain.regimes[regime_atual]["nome"],
+            "Regime_Metrica": brain.metricas_regime[regime_atual],
+            "Regime_Futuro": np.argmax(prob_suavizada),
+            "Prob_Regime_Futuro": np.max(prob_suavizada),
             "Estado_Futuro": 99,
             "Evento": resultado["evento"],
             "Carteira_Atual": carteira_atual,

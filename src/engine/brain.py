@@ -30,10 +30,11 @@ class MarketBrain:
         self.politica_otima = {}
         self.X_treino_scaled = None
         self.relatorios_regimes = None
+        self.metricas_regime = {0: "omega",1: "sortino",2: "calmar",3: "cvar"}
         self.regimes = self.criar_regimes()
 
     def treinar_e_otimizar(self, dados_treino_hmm, retornos_sinal, colunas_hmm, colunas_operacao,
-                            tempo_regime, metrica_otimizacao, limite_max_por_ativo):
+                            tempo_regime, metrica_otimizacao, limite_max_por_ativo, limite_min_por_ativo, numero_ativos, matriz_transicao):
 
         df_treino_acoes = retornos_sinal.loc[dados_treino_hmm.index]
         ativos_risco = [col for col in colunas_operacao if col != 'CDI']
@@ -44,17 +45,34 @@ class MarketBrain:
         self.X_treino_scaled = self.scaler.fit_transform(X_treino)
         self.colunas_hmm = colunas_hmm
 
-        matriz_persistencia_085 = np.array([
-        [0.85, 0.12, 0.02, 0.01], 
-        [0.08, 0.77, 0.12, 0.03],
-        [0.02, 0.10, 0.78, 0.10], 
-        [0.01, 0.02, 0.12, 0.85] 
-        ])
+        matriz_persistencia = self.matriz_persistencia()
 
-        self.modelo.transmat_ = matriz_persistencia_085
-        self.modelo.init_params = 'smc'
-        self.modelo.fit(self.X_treino_scaled)
-        self.transmat_orignal = self.modelo.transmat_
+        if matriz_transicao == "fixa":
+            self.modelo.transmat_ = matriz_persistencia.copy()
+            self.modelo.params = "smc"
+
+            self.modelo.init_params = "smc" #inicializacao
+            self.modelo.fit(self.X_treino_scaled)
+            self.transmat_orignal = matriz_persistencia.copy()
+            self.transmat_ordenada = matriz_persistencia.copy()
+        elif matriz_transicao == "adaptativa":
+            self.modelo.init_params = "stmc"
+            self.modelo.params = "stmc"
+
+            self.modelo.fit(self.X_treino_scaled)
+
+            self.transmat_orignal = (
+                self.modelo.transmat_.copy()
+            )
+
+            self.transmat_ordenada = (
+                self.modelo.transmat_.copy()
+            )
+        else:
+            raise ValueError(
+                "matriz_transicao deve ser "
+                "'fixa' ou 'adaptativa'"
+            )
 
 
         #bloco antigo, fazia o ranking somente pelo ibovespa
@@ -71,10 +89,7 @@ class MarketBrain:
         self.mapa_risco = self.classificar_risco_regime()
 
 
-        estados_por_risco = {
-            risco: estado_hmm 
-            for estado_hmm, risco in self.mapa_risco.items()
-        }
+        estados_por_risco = {risco: estado_hmm for estado_hmm, risco in self.mapa_risco.items()}
 
         self.transition_probs = {
             (i, j): self.transmat_orignal[
@@ -96,7 +111,8 @@ class MarketBrain:
 
         self.carteiras, nomes_carteiras = criar_carteiras_por_regime(
             df_treino_acoes, self.estados_possiveis, ativos_vivos, ativos_risco, 
-            colunas_operacao, tempo_regime, metrica_otimizacao, limite_max_por_ativo
+            colunas_operacao, tempo_regime, metrica_otimizacao, limite_max_por_ativo,
+            limite_min_por_ativo, self.metricas_regime, numero_ativos
         )
 
         self.recompensas, self.metricas_recompensa = calcular_metricas_bellman(
@@ -106,7 +122,7 @@ class MarketBrain:
             colunas_operacao=colunas_operacao,
             tempo_regime=tempo_regime,
             metrica_otimizacao=metrica_otimizacao,
-            regimes = self.regimes
+            metricas_regime = self.metricas_regime
         )
 
         _, self.politica_otima = belmann_equation(
@@ -116,6 +132,13 @@ class MarketBrain:
             self.recompensas
         )
 
+    def matriz_persistencia(self):
+        return np.array([
+            [0.85, 0.12, 0.02, 0.01],
+            [0.08, 0.77, 0.12, 0.03],
+            [0.02, 0.10, 0.78, 0.10],
+            [0.01, 0.02, 0.12, 0.85]
+        ])
 
     def classificar_risco_regime(self):
 
@@ -127,20 +150,19 @@ class MarketBrain:
 
         estatisticas = df.groupby("estado").agg({
             "ibovespa_br_returns": "mean",
-            "petro_brent_zscore": "mean",
             "vix_zscore": "mean",
             "risco_brasil_zscore": "mean",
-            "dolar_cambio_livre_p_tax_zscore": "mean"
+            "dolar_cambio_livre_p_tax_zscore": "mean",
+            "petro_brent_zscore": "mean"
         })
 
 
         score = (
-            -0.35 * estatisticas["ibovespa_br_returns"] +
+            - 0.30 * estatisticas["ibovespa_br_returns"] +
             0.20 * estatisticas["vix_zscore"] +
-            0.20 * estatisticas["risco_brasil_zscore"] +
+            0.25 * estatisticas["risco_brasil_zscore"] +
             0.15 * estatisticas['dolar_cambio_livre_p_tax_zscore'] +
             0.10 * estatisticas["petro_brent_zscore"]
-
         )
 
         ranking = score.rank(method='first').astype(int) - 1
@@ -155,22 +177,18 @@ class MarketBrain:
         return {
             0: {
                 "nome": "Bull_Baixa_Vol",
-                "metrica": "omega",
                 "descricao": "Ambiente favorável, baixa volatilidade"
             },
             1: {
                 "nome": "Transicao_Normal",
-                "metrica": "sortino",
                 "descricao": "Mercado normal ou transição"
             },
             2: {
                 "nome": "Correcao",
-                "metrica": "cvar",
                 "descricao": "Ambiente defensivo, risco elevado"
             },
             3: {
                 "nome": "Crise_Panico",
-                "metrica": "min_vol",
                 "descricao": "Estresse extremo, preservação de capital"
             }
         }

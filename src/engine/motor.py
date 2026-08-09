@@ -6,6 +6,11 @@ import pandas as pd
 import numpy as np
 
 def formatar_composicao(nome_carteira, carteiras_dict):
+    """"
+        Cria a composição da carteira, com seus pesos respectivos. 
+        Ex: PETR4.SA 20% | BBAS3.SA 15% | PRIO3.SA 5% | CDI 60%
+        Retorna uma string formatada.
+    """
     pesos = carteiras_dict.get(nome_carteira, {})
     comp = []
 
@@ -18,14 +23,15 @@ def formatar_composicao(nome_carteira, carteiras_dict):
 
 def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes_disponiveis, colunas_hmm, colunas_operacao, 
                            ano_inicio_operacao=2005, janela_teste=1, metrica_otimizacao='adaptativo', 
-                           anos_memoria_treino=10, tempo_regime=21, limite_max_por_ativo=0.08, 
-                           custo_corretagem=0.0005, custo_slippage=0.001, capital_inicial=100000):
+                           anos_memoria_treino=10, tempo_regime=21, limite_max_por_ativo=0.08, limite_min_por_ativo=0.03, numero_ativos=20,
+                           custo_corretagem=0.0005, custo_slippage=0.001, capital_inicial=100000, aliquota_cdi=0.225,
+                           alpha_ema=0.20, margem_troca=0.20, matriz_transicao="adaptativa"):
 
     historico = {"backtest": [], "rodadas": [], "recompensas": [], "carteiras": [], "pesos": []}
     portfolio_global = Portfolio(capital_inicial, colunas_operacao)
     carteira_pendente_acumulada=None
     carteira_acumulada = "100_CDI"
-    ano_fim_dados = int(df_features.index.year.max() - 1) #caso quisermos ate 2025 só subtrair 1
+    ano_fim_dados = int(df_features.index.year.max() -1) #tiramos -1 pra nao pegar dados de 2026 
 
 
     for ano_teste_inicio in range(ano_inicio_operacao, ano_fim_dados + 1, janela_teste):
@@ -46,7 +52,7 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
 
         brain = MarketBrain()
         brain.treinar_e_otimizar(dados_treino_hmm, retornos_sinal, colunas_hmm, colunas_operacao,
-                                  tempo_regime, metrica_otimizacao, limite_max_por_ativo)
+                                  tempo_regime, metrica_otimizacao, limite_max_por_ativo, limite_min_por_ativo, numero_ativos, matriz_transicao=matriz_transicao)
 
 
         df_teste_acoes = retornos_execucao.loc[dados_teste_hmm.index].copy()
@@ -64,7 +70,11 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
             custo_corretagem=custo_corretagem, 
             custo_slippage=custo_slippage,
             carteira_inicial=carteira_acumulada,
-            carteira_pendente_inicial=carteira_pendente_acumulada
+            carteira_pendente_inicial=carteira_pendente_acumulada,
+            margem_troca=margem_troca,
+            alpha_ema=alpha_ema,
+            limite_min_por_ativo=limite_min_por_ativo,
+            aliquota_cdi=aliquota_cdi
         )
 
         carteira_acumulada = cart_atual_ac
@@ -73,6 +83,7 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
         retornos_modelo = np.array([d["Retorno_Modelo"] for d in logs_backtest])
         retornos_bench = np.array([d["Retorno_Benchmark"] for d in logs_backtest])
         retornos_bench_hibrido = np.array([d['Retorno_Benchmark_Hibrido'] for d in logs_backtest])
+        retorno_bench_dinamico = np.array([d['Retorno_Benchmark_Hibrido_Dinamico'] for d in logs_backtest])
 
         rf_medio_diario = df_teste_acoes["CDI"].mean()
 
@@ -103,7 +114,8 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
             'Retorno_Teste_Modelo': round(np.prod(1 + retornos_modelo) - 1, 2),
             'Retorno_Teste_Ibov': round(np.prod(1 + retornos_bench) - 1, 2),
             'Retorno_Teste_Bench_Hibrido': round(np.prod(1 + retornos_bench_hibrido) -1, 2),
-            'Alpha_Rodada': round((np.prod(1 + retornos_modelo) - 1) - (np.prod(1 + retornos_bench) - 1), 2),
+            "Retorno_Teste_Bench_Dinamico": round(np.prod(1 + retorno_bench_dinamico) - 1, 2),
+            'Alpha_Rodada': round((np.prod(1 + retornos_modelo) - 1) - (np.prod(1 + retorno_bench_dinamico) - 1), 2),
             'CAGR': round(cagr_m, 2), 'Volatilidade': round(vol_m, 2), 'Sharpe': round(sharpe_m, 2),
             'Sortino': round(sortino_m, 2), 'Max_Drawdown': round(dd_m, 2), 'Calmar': round(calmar_m, 2),
             "Mapa_Risco": brain.mapa_risco

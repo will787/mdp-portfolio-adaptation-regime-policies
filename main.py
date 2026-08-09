@@ -34,11 +34,13 @@ from src.utils.read_dir import try_read_dir
 
 BASE_DIR = try_read_dir()
 
+#variaveis dependentes (ibovespa_br_returns, dolar_cambio_livre_p_tax_zscore, risco_brasil_zscore, vix_zscore, petro_brent_zscore)
 features = [
-        'ibovespa_br_returns', 'ibovespa_br_volatily', 'ibovespa_br_vol_regime',
+        'ibovespa_br_returns', 'ibovespa_br_momentum', 'ibovespa_br_zscore',
         'vix_zscore', 'petro_brent_zscore', 'taxa_selic_zscore', 'risco_brasil_zscore',
-        'shanghai_china_vol_regime', 's&p500_eua_vol_regime', 'inflacao_mensal_pct_change_lag_1m',
-        'dolar_cambio_livre_p_tax_zscore', 'iene_cambio_livre_zscore'
+        'shanghai_china_pct_change_lag_1m', 's&p500_eua_pct_change_lag_1m', 'inflacao_mensal_pct_change_lag_1m',
+        'dolar_cambio_livre_p_tax_zscore', 'euro_cambio_livre_zscore', 'iene_cambio_livre_zscore',
+        'gas_natural_commodity_zscore', 'milho_commodity_zscore', 'acucar_commodity_zscore'
 ]
 
 arquivo = BASE_DIR / 'data/gold/macro_features_hmm.parquet'
@@ -86,11 +88,14 @@ df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forw
     janela_teste=1, 
     metrica_otimizacao='adaptativo',
     anos_memoria_treino=4, 
-    tempo_regime=63, 
+    tempo_regime=21, 
     limite_max_por_ativo=0.08,
+    limite_min_por_ativo = 0.03,
     custo_corretagem=0.005,             
     custo_slippage=0.003,              
-    capital_inicial=100000
+    capital_inicial=100000,
+    numero_ativos=20,
+    matriz_transicao="adaptativa"
 )
 # %%
 vis.plot_full_history(df_resultado, ano_inicio=2010)
@@ -98,7 +103,7 @@ vis.plot_regimes_historicos(df_resultado)
 vis.plot_heatmap_alpha_mensal(df_resultado)
 vis.analise_comparativa_benchmark_flag(df_resultado, df_features,flag_vline=1)
 vis.plot_scatter_retornos_mensais(df_resultado, coluna_bench='Retorno_Benchmark_Hibrido_Dinamico')
-vis.plot_distribuicao_retornos(df_resultado)
+#vis.plot_distribuicao_retornos(df_resultado)
 vis.analise_atribuicao_alpha(df_resultado)
 vis.plot_evolucao_alocacao(df_resultado)
 vis.plot_retorno_anual_comparativo(df_resultado)
@@ -114,121 +119,29 @@ df_pesos.to_csv('df_pesos.csv')
 for regime, grupo in df_resultado.groupby("Nome_Regime"):
 
     ret_modelo = (1 + grupo["Retorno_Modelo"]).prod() - 1
-    ret_ibov = (1 + grupo["Retorno_Benchmark"]).prod() - 1
+    ret_ibov = (1 + grupo["Retorno_Benchmark_Hibrido_Dinamico"]).prod() - 1
 
     alpha = ret_modelo - ret_ibov
 
     print(f"{regime}: Alpha = {alpha * 100:.2f}%")
 
-# %%
 
-import pandas as pd
-import numpy as np
+def analisar_regimes_out_of_sample(df_resultado):
 
-def calcular_drawdown_durations(serie_patrimonio):
-    # Encontra o pico acumulado (máximas históricas)
-    picos = serie_patrimonio.cummax()
-    
-    # Cria uma máscara booleana: True se estiver em drawdown, False se bateu nova máxima
-    em_drawdown = serie_patrimonio < picos
-    
-    # Calcula a duração de cada período de drawdown em dias úteis
-    duracoes = []
-    duracao_atual = 0
-    
-    for flag in em_drawdown:
-        if flag:
-            duracao_atual += 1
-        else:
-            if duracao_atual > 0:
-                duracoes.append(duracao_atual)
-            duracao_atual = 0
-            
-    # Se o backtest terminou enquanto o fundo ainda estava em drawdown:
-    if duracao_atual > 0:
-        duracoes.append(duracao_atual)
-        
-    if len(duracoes) == 0:
-        return 0.0, 0.0
-        
-    return np.max(duracoes), np.mean(duracoes)
+    resumo = (
+        df_resultado
+        .groupby("Regime_Macro")
+        .agg({
+            "Retorno_Benchmark":"mean",
+            "Retorno_Modelo":"mean",
+            "Exposicao_Acoes":"mean"
+        })
+    )
 
-# Lista para consolidar os dicionários de métricas
-metricas_stress = []
+    return resumo
 
-metricas_stress_com_duration = []
-
-for limite in [0.08, 0.09, 0.10]:
-    print(f"Processando Limite: {limite*100:.1f}%...")
-    for memoria in [3,4]:
-        print(f"Processando Durações: Memória = {memoria} | Limite = {limite*100:.1f}%...")
-        for slippage in [0.003, 0.005]:
-            print(f"Processando Durações: Memória = {memoria} | Slippage = {slippage*100:.1f}%...")
-            
-            # 1. Roda o seu motor quantitativo
-            df_res, _, _, _, _ = run_walk_forward_motor(
-                df_features=df_features, 
-                retornos_sinal=retornos_sinal,
-                retornos_execucao=retornos_execucao,
-                acoes_disponiveis=ativos_risco,
-                colunas_hmm=df_features.columns,
-                colunas_operacao=colunas_operacao,
-                ano_inicio_operacao=2010,
-                janela_teste=1, 
-                metrica_otimizacao='adaptativo',
-                tempo_regime=22, 
-                limite_max_por_ativo=limite,
-                custo_corretagem=0.005,          
-                capital_inicial=100000,
-                anos_memoria_treino=memoria,
-                custo_slippage=slippage
-            )
-            
-            df_res.index = pd.to_datetime(df_res.index)
-            df_res = df_res.sort_index()
-            
-            # 2. Métricas de retorno tradicionais
-            patrimonio_inicial = df_res['Patrimonio'].iloc[0]
-            patrimonio_final = df_res['Patrimonio'].iloc[-1]
-            anos = len(df_res) / 252.0
-            cagr = (patrimonio_final / patrimonio_inicial) ** (1 / anos) - 1
-            
-            retornos = df_res['Retorno_Modelo'].dropna()
-            vol = retornos.std() * np.sqrt(252)
-            retorno_anual_comp = (1 + retornos.mean()) ** 252 - 1
-            sharpe = retorno_anual_comp / vol if vol != 0 else 0
-            
-            # 3. Métricas de profundidade do risco
-            rolling_max = df_res['Patrimonio'].cummax()
-            drawdown = (df_res['Patrimonio'] - rolling_max) / rolling_max
-            max_dd = drawdown.min()
-            
-            # 4. NOVAS MÉTRICAS: Métricas de Tempo do Risco (Duration)
-            max_duration_dias, mean_duration_dias = calcular_drawdown_durations(df_res['Patrimonio'])
-            
-            # Convertendo dias úteis de mercado para uma aproximação comercial em meses (21 dias úteis/mês)
-            max_duration_meses = max_duration_dias / 21.0
-            mean_duration_meses = mean_duration_dias / 21.0
-            
-            metricas_stress_com_duration.append({
-                "Memória (Anos)": memoria,
-                "Slippage (%)": f"{slippage * 100:.1f}%",
-                "Limite (%)": f"{limite * 100:.1f}%",
-                "CAGR": f"{cagr * 100:.2f}%",
-                "Sharpe": f"{sharpe:.2f}",
-                "Max DD": f"{max_dd * 100:.2f}%",
-                "Max Duration (Meses)": f"{max_duration_meses:.1f} M",
-                "Duração Média (Meses)": f"{mean_duration_meses:.1f} M"
-            })
-
-# Exibe o relatório institucional de encerramento do projeto
-df_relatorio_final = pd.DataFrame(metricas_stress_com_duration)
-print("\n" + "="*33 + " RELATÓRIO FINAL DE ESTRESSE & DURABILIDADE " + "="*33)
-print(df_relatorio_final.to_string(index=False))
-print("="*110)
-# %%
-
-df_relatorio_final.to_csv('df_relatorio_final_simulacoes.csv')
+resumo_regimes = analisar_regimes_out_of_sample(df_resultado)
+print(resumo_regimes)
 
 
 # %%
@@ -450,4 +363,115 @@ def analisar_resultados_por_regime(df):
     return df_analise
 
 df_regimes_summary = analisar_resultados_por_regime(df_resultado)
+# %%
+
+# %%
+
+import pandas as pd
+import numpy as np
+
+def calcular_drawdown_durations(serie_patrimonio):
+    # Encontra o pico acumulado (máximas históricas)
+    picos = serie_patrimonio.cummax()
+    
+    # Cria uma máscara booleana: True se estiver em drawdown, False se bateu nova máxima
+    em_drawdown = serie_patrimonio < picos
+    
+    # Calcula a duração de cada período de drawdown em dias úteis
+    duracoes = []
+    duracao_atual = 0
+    
+    for flag in em_drawdown:
+        if flag:
+            duracao_atual += 1
+        else:
+            if duracao_atual > 0:
+                duracoes.append(duracao_atual)
+            duracao_atual = 0
+            
+    # Se o backtest terminou enquanto o fundo ainda estava em drawdown:
+    if duracao_atual > 0:
+        duracoes.append(duracao_atual)
+        
+    if len(duracoes) == 0:
+        return 0.0, 0.0
+        
+    return np.max(duracoes), np.mean(duracoes)
+
+# Lista para consolidar os dicionários de métricas
+metricas_stress = []
+
+metricas_stress_com_duration = []
+
+for limite in [0.08, 0.09, 0.10]:
+    print(f"Processando Limite: {limite*100:.1f}%...")
+    for memoria in [3,4]:
+        print(f"Processando Durações: Memória = {memoria} | Limite = {limite*100:.1f}%...")
+        for slippage in [0.003, 0.005]:
+            print(f"Processando Durações: Memória = {memoria} | Slippage = {slippage*100:.1f}%...")
+            
+            # 1. Roda o seu motor quantitativo
+            df_res, _, _, _, _ = run_walk_forward_motor(
+                df_features=df_features, 
+                retornos_sinal=retornos_sinal,
+                retornos_execucao=retornos_execucao,
+                acoes_disponiveis=ativos_risco,
+                colunas_hmm=df_features.columns,
+                colunas_operacao=colunas_operacao,
+                ano_inicio_operacao=2010,
+                janela_teste=1, 
+                metrica_otimizacao='adaptativo',
+                tempo_regime=22, 
+                limite_max_por_ativo=limite,
+                custo_corretagem=0.005,          
+                capital_inicial=100000,
+                anos_memoria_treino=memoria,
+                custo_slippage=slippage
+            )
+            
+            df_res.index = pd.to_datetime(df_res.index)
+            df_res = df_res.sort_index()
+            
+            # 2. Métricas de retorno tradicionais
+            patrimonio_inicial = df_res['Patrimonio'].iloc[0]
+            patrimonio_final = df_res['Patrimonio'].iloc[-1]
+            anos = len(df_res) / 252.0
+            cagr = (patrimonio_final / patrimonio_inicial) ** (1 / anos) - 1
+            
+            retornos = df_res['Retorno_Modelo'].dropna()
+            vol = retornos.std() * np.sqrt(252)
+            retorno_anual_comp = (1 + retornos.mean()) ** 252 - 1
+            sharpe = retorno_anual_comp / vol if vol != 0 else 0
+            
+            # 3. Métricas de profundidade do risco
+            rolling_max = df_res['Patrimonio'].cummax()
+            drawdown = (df_res['Patrimonio'] - rolling_max) / rolling_max
+            max_dd = drawdown.min()
+            
+            # 4. NOVAS MÉTRICAS: Métricas de Tempo do Risco (Duration)
+            max_duration_dias, mean_duration_dias = calcular_drawdown_durations(df_res['Patrimonio'])
+            
+            # Convertendo dias úteis de mercado para uma aproximação comercial em meses (21 dias úteis/mês)
+            max_duration_meses = max_duration_dias / 21.0
+            mean_duration_meses = mean_duration_dias / 21.0
+            
+            metricas_stress_com_duration.append({
+                "Memória (Anos)": memoria,
+                "Slippage (%)": f"{slippage * 100:.1f}%",
+                "Limite (%)": f"{limite * 100:.1f}%",
+                "CAGR": f"{cagr * 100:.2f}%",
+                "Sharpe": f"{sharpe:.2f}",
+                "Max DD": f"{max_dd * 100:.2f}%",
+                "Max Duration (Meses)": f"{max_duration_meses:.1f} M",
+                "Duração Média (Meses)": f"{mean_duration_meses:.1f} M"
+            })
+
+# Exibe o relatório institucional de encerramento do projeto
+df_relatorio_final = pd.DataFrame(metricas_stress_com_duration)
+print("\n" + "="*33 + " RELATÓRIO FINAL DE ESTRESSE & DURABILIDADE " + "="*33)
+print(df_relatorio_final.to_string(index=False))
+print("="*110)
+
+df_relatorio_final.to_csv('df_relatorio_final_simulacoes.csv')
+
 # %%

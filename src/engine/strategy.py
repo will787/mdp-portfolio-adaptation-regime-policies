@@ -5,10 +5,10 @@ from src.engine.order_manager import OrderManager
 from src.engine.clearing import ClearingHouse
 from src.engine.cost_calculator import calcular_turnover, calcular_custo_transicao
 
-def executar_strategy(portfolio: Portfolio,retornos_dia: dict,estado_hoje: int, estado_futuro: int, politica_otima: dict,
+def executar_estrategia(portfolio: Portfolio,retornos_dia: dict,estado_hoje: int, estado_futuro: int, politica_otima: dict,
                       recompensas: dict,carteiras: dict,carteira_atual: str, carteira_pendente: str,dias_restantes: int,
                       dias_holding: int,holding_minimo: int,margem_troca: float,aliquota_cdi: float,
-                      custo_corretagem: float,custo_slippage: float) -> dict:
+                      custo_corretagem: float,custo_slippage: float, reward_sintetico: float) -> dict:
     """"
         Orquestração do ciclo diário de execução da cartiera: liquidação de caixa,
         avaliação de ordens de Bellman, marcação a mercado e rebalanceamentos
@@ -23,11 +23,10 @@ def executar_strategy(portfolio: Portfolio,retornos_dia: dict,estado_hoje: int, 
 
     acao_escolhida = politica_otima[estado_futuro]
     reward_atual = recompensas[(estado_hoje, carteira_atual)]
-    reward_nova = recompensas[(estado_hoje, acao_escolhida)]
+    reward_nova = reward_sintetico
 
-
+    portfolio.marcar_a_mercado(retornos_dia)
     manager = OrderManager(holding_minimo, margem_troca)
-    
     status_ordem = manager.avaliar_sinal_diario(
         portfolio,
         acao_escolhida,
@@ -40,12 +39,10 @@ def executar_strategy(portfolio: Portfolio,retornos_dia: dict,estado_hoje: int, 
         carteiras
     )
 
-    portfolio.marcar_a_mercado(retornos_dia)
-
 
     if status_ordem["executou"]:
-        pesos_finais = carteiras[carteira_atual]
-        pesos_atuais = portfolio.pesos().to_dict()
+        pesos_finais = carteiras[status_ordem["carteira_atual"]]
+        pesos_atuais = portfolio.pesos().drop("Clearing", errors="ignore").to_dict()
 
         turnover = calcular_turnover(pesos_atuais, pesos_finais)
         custo_transicao = calcular_custo_transicao(turnover, custo_corretagem, custo_slippage)

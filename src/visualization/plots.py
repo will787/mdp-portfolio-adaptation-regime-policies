@@ -391,8 +391,8 @@ def plot_regimes_historicos(df_resultado):
         df_plot,
         x=df_plot.index,
         y='Ibovespa_Acumulado',
-        color='Nome_Regime',
-        title='Raio-X Macro: Regimes Detectados pelo HMM',
+        color='Regime_Macro',
+        title='Estado Latentes HMM',
         log_y=True
     )
 

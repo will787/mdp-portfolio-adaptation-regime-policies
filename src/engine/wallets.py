@@ -12,8 +12,8 @@ def chute_score(score):
     chute = chute / chute.sum()
     return chute
 
-def criar_carteiras_por_regime(df_treino_acoes, estados_possiveis, ativos_vivos, ativos_risco, 
-                               colunas_operacao, tempo_regime, metrica_otimizacao, limite_max_por_ativo):
+def criar_carteiras_por_regime(df_treino_acoes, estados_possiveis, ativos_vivos, ativos_risco, colunas_operacao, tempo_regime, metrica_otimizacao,
+                            limite_max_por_ativo, limite_min_por_ativo, metricas_regime, numero_ativos):
     """"
         Filtra as top 30 ações baseadas em utilidade e risco por regime do HMM
         resolvendo a otimização de pesos de forma isolada. 
@@ -44,7 +44,7 @@ def criar_carteiras_por_regime(df_treino_acoes, estados_possiveis, ativos_vivos,
     for s in estados_possiveis:
         dias_estado = df_treino_acoes[df_treino_acoes['Estado_Regime'] == s]
 
-        if len(dias_estado) > tempo_regime:
+        if len(dias_estado) > 7:
             retornos_ativos = dias_estado[ativos_vivos]
             selic_media_regime = dias_estado['CDI'].mean()
 
@@ -57,7 +57,7 @@ def criar_carteiras_por_regime(df_treino_acoes, estados_possiveis, ativos_vivos,
             downside = np.sqrt((ret_negativo ** 2).mean()) * np.sqrt(252)
             score = (ret -0.5 * drag - 0.3 * downside)
 
-            topx = score.nlargest(20).index
+            topx = score.nlargest(numero_ativos).index
             retornos_fatiados = retornos_ativos[topx]
             score_fatiado = score[topx]
 
@@ -67,13 +67,15 @@ def criar_carteiras_por_regime(df_treino_acoes, estados_possiveis, ativos_vivos,
 
             metrica_regime = metrica_otimizacao
             if metrica_otimizacao == 'adaptativo':
-                metrica_regime = ['omega', 'sortino', 'cvar', 'min_vol'][s]
+                metrica_regime = metricas_regime[s]
+
 
             carteira_otima_crua, _ = otimizar_carteira_por_regime(
                 retornos_estado = retornos_fatiados,
                 taxa_livre_risco_diaria = selic_media_regime,
                 metrica=metrica_regime,
                 limite_max_por_ativo = limite_max_por_ativo,
+                limite_min_por_ativo=limite_min_por_ativo,
                 chute_inicial = chute
             )
 
@@ -94,7 +96,7 @@ def criar_carteiras_por_regime(df_treino_acoes, estados_possiveis, ativos_vivos,
     return acoes_disponiveis_dinamico, nomes_acoes_dinamico
 
 
-def otimizar_carteira_por_regime(retornos_estado, taxa_livre_risco_diaria, metrica, limite_max_por_ativo, chute_inicial, limite_min_por_ativo=0.02):
+def otimizar_carteira_por_regime(retornos_estado, taxa_livre_risco_diaria, metrica, limite_max_por_ativo, chute_inicial, limite_min_por_ativo):
     """"
         Otimizador númerico SQSQP (Markovitz / Sortino / Calmar Adaptativo)
         Aplicamos a capitalização para anualizar retornos e volatilidade
@@ -196,12 +198,12 @@ def otimizar_carteira_por_regime(retornos_estado, taxa_livre_risco_diaria, metri
     if pesos.sum() > 0:
         pesos = pesos / pesos.sum()
 
-    teto_bolsa = 0.80
+    teto_bolsa = 1
     fator_alocacao_bolsa = calcular_exposicao_kelly(
         retornos_estado=retornos_estado,
         pesos=pesos,
         taxa_livre_risco_diaria=taxa_livre_risco_diaria,
-        fracao_kelly=0.7,
+        fracao_kelly=0.75,
         teto_exposicao=teto_bolsa
     )
 
@@ -216,7 +218,7 @@ def otimizar_carteira_por_regime(retornos_estado, taxa_livre_risco_diaria, metri
 
 
 def calcular_metricas_bellman(estados_possiveis, df_treino_acoes, acoes_disponiveis_dinamico,
-                              colunas_operacao, tempo_regime, metrica_otimizacao, regimes):
+                              colunas_operacao, tempo_regime, metrica_otimizacao, metricas_regime):
 
     """"
         Avalia a matriz de utilidade histórica de cada combinação de Estado e Carteira.
@@ -226,14 +228,12 @@ def calcular_metricas_bellman(estados_possiveis, df_treino_acoes, acoes_disponiv
     recompensas = {}
     metricas_recompensa = {}
 
-
     idx_cdi = colunas_operacao.index('CDI') if "CDI" in colunas_operacao else -1
-
 
     for s in estados_possiveis:
         dias_estado = df_treino_acoes[df_treino_acoes['Estado_Regime'] == s]
 
-        if len(dias_estado) <= 7:
+        if len(dias_estado) <= tempo_regime:
             for nome_acao in acoes_disponiveis_dinamico.keys():
                 recompensas[(s, nome_acao)] = -1.0
                 metricas_recompensa[(s, nome_acao)] = {
@@ -281,7 +281,7 @@ def calcular_metricas_bellman(estados_possiveis, df_treino_acoes, acoes_disponiv
             metrica_atual = metrica_otimizacao
             if metrica_otimizacao == 'adaptativo':
             
-                metrica_atual = regimes[s]['metrica']
+                metrica_atual = metricas_regime[s]
 
             if metrica_atual == "sortino":
                 ret_negativo = retornos_portfolio_diario[retornos_portfolio_diario < 0]
