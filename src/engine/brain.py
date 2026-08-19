@@ -65,24 +65,13 @@ class MarketBrain:
         #    for i in self.estados_possiveis for j in self.estados_possiveis
         #}            
 
+        # mapea e ranqueia os estados latentes do hmm pelo score de risco multivariado
         self.mapa_risco = self.classificar_risco_regime()
 
-        estados_por_risco = {risco: estado_hmm for estado_hmm, risco in self.mapa_risco.items()}
-
-        self.transition_probs = {
-            (i, j): self.transmat_orignal[
-                estados_por_risco[i],
-                estados_por_risco[j]
-            ]
-            for j in self.estados_possiveis 
-            for i in self.estados_possiveis
-        }
-
-        n_states = len(self.estados_possiveis)
-        self.transmat_ordenada = np.zeros((n_states, n_states))
-        for i in self.estados_possiveis:
-            for j in self.estados_possiveis:
-                self.transmat_ordenada[i,j] = self.transition_probs[(i,j)]
+        self.transition_probs, self.transmat_ordenada = self.construir_matriz_transicao_ordenada(
+            matriz_transicao=matriz_transicao,
+            matriz_persistencia=matriz_persistencia
+        )
 
         estado_treino = [self.mapa_risco[s] for s in self.modelo.predict(self.X_treino_scaled)]
         df_treino_acoes = pd.DataFrame(df_treino_acoes.assign(Estado_Regime=estado_treino))
@@ -117,18 +106,13 @@ class MarketBrain:
             self.modelo.init_params = "smc" #inicializacao
             self.modelo.fit(self.X_treino_scaled)
             self.transmat_orignal = matriz_persistencia.copy()
-            self.transmat_ordenada = matriz_persistencia.copy()
         elif matriz_transicao == "adaptativa":
-            self.modelo.init_params = "smc" #t
-            self.modelo.params = "smc" #t
+            self.modelo.init_params = "stmc" #t
+            self.modelo.params = "stmc" #t
 
             self.modelo.fit(self.X_treino_scaled)
 
             self.transmat_orignal = (
-                self.modelo.transmat_.copy()
-            )
-
-            self.transmat_ordenada = (
                 self.modelo.transmat_.copy()
             )
         else:
@@ -144,6 +128,47 @@ class MarketBrain:
             [0.02, 0.10, 0.78, 0.10],
             [0.01, 0.02, 0.12, 0.85]
         ])
+    
+    def construir_matriz_transicao_ordenada(self, matriz_transicao: str, matriz_persistencia: np.ndarray) -> tuple[dict, np.ndarray]:
+        """
+        Gera as probabilidades de transição ordenadas consistentemente pelo nível de risco (0 a N-1).
+        
+        Retorna:
+            - transition_probs: dict no formato {(i, j): prob} para consumo na equação de Bellman.
+            - transmat_ordenada: np.ndarray (N, N) com linhas/colunas alinhadas à escala de risco.
+        """
+        n_states = len(self.estados_possiveis)
+        
+        if matriz_transicao == "fixa":
+            # A matriz fixa já é canônica (0: Bull ... N-1: Pânico/Estresse)
+            transmat_ordenada = matriz_persistencia.copy()
+            transition_probs = {
+                (i, j): float(transmat_ordenada[i, j])
+                for i in self.estados_possiveis
+                for j in self.estados_possiveis
+            }
+            return transition_probs, transmat_ordenada
+
+        elif matriz_transicao == "adaptativa":
+            # No modo adaptativo, permuta as probabilidades brutas aprendidas pelo HMM
+            estados_por_risco = {risco: estado_hmm for estado_hmm, risco in self.mapa_risco.items()}
+            
+            transmat_ordenada = np.zeros((n_states, n_states))
+            transition_probs = {}
+            
+            for i in self.estados_possiveis:
+                for j in self.estados_possiveis:
+                    raw_i = estados_por_risco[i]
+                    raw_j = estados_por_risco[j]
+                    prob = float(self.transmat_orignal[raw_i, raw_j])
+                    
+                    transition_probs[(i, j)] = prob
+                    transmat_ordenada[i, j] = prob
+                    
+            return transition_probs, transmat_ordenada
+
+        else:
+            raise ValueError(f"Tipo de matriz '{matriz_transicao}' não reconhecido. Use 'fixa' ou 'adaptativa'.")
 
     def classificar_risco_regime(self):
 
@@ -193,7 +218,7 @@ class MarketBrain:
                 "descricao": "Ambiente defensivo, risco elevado"
             },
             3: {
-                "nome": "Crise_Panico",
-                "descricao": "Estresse extremo, preservação de capital"
+                "nome": "Panico_Alta_Vol",
+                "descricao": "Estresse extremo, preservação de capital (CVaR)"
             }
         }

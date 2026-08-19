@@ -141,7 +141,9 @@ def otimizar_carteira_por_regime(retornos_estado, taxa_livre_risco_diaria, metri
 
         elif metrica == 'sharpe':
             vol_total_anual = np.std(retorno_diario_p) * np.sqrt(252)
-            return -(retorno_excesso_anual) / (vol_total_anual + 1e-6)
+            if retorno_excesso_anual < 0:
+                return -retorno_excesso_anual * (vol_total_anual + 1e-6)
+            return -retorno_excesso_anual / (vol_total_anual + 1e-6)
 
         elif metrica == 'omega':
             ganhos = retorno_diario_p[retorno_diario_p > taxa_livre_risco_diaria] - taxa_livre_risco_diaria
@@ -168,7 +170,8 @@ def otimizar_carteira_por_regime(retornos_estado, taxa_livre_risco_diaria, metri
             peak = np.maximum.accumulate(cum_ret)
             drawdown = (cum_ret - peak)/ (peak+1e-8)
             max_drawdown = np.abs(np.min(drawdown))
-
+            if retorno_excesso_anual < 0:
+                return -(retorno_excesso_anual) * (cvar_anual + 1e-6)
             return -(retorno_excesso_anual) / (max_drawdown + 1e-6)
 
         elif metrica == 'min_vol':
@@ -291,12 +294,19 @@ def calcular_metricas_bellman(estados_possiveis, df_treino_acoes, acoes_disponiv
                 ret_negativo = retornos_portfolio_diario[retornos_portfolio_diario < 0]
                 if len(ret_negativo):
                     downside = np.sqrt(np.mean(ret_negativo**2)) * np.sqrt(252)
-                    recompensa = retorno_excesso / (downside + 1e-6)
                 else:
-                    recompensa = retorno_excesso
+                    downside = 1e-6
 
+                if retorno_excesso < 0:
+                    recompensa = retorno_excesso * (downside + 1e-6)
+                else:
+                    recompensa = retorno_excesso / (downside + 1e-6)
+                
             elif metrica_atual == 'sharpe':
-                recompensa = retorno_excesso / (vol_anual + 1e-6)
+                if retorno_excesso < 0:
+                    recompensa = retorno_excesso * (vol_anual + 1e-6)
+                else:
+                    recompensa = retorno_excesso / (vol_anual + 1e-6)
 
             elif metrica_atual == 'cvar':
                 alpha = 0.05
@@ -318,7 +328,10 @@ def calcular_metricas_bellman(estados_possiveis, df_treino_acoes, acoes_disponiv
                 recompensa = sum_ganhos / (sum_perdas + 1e-6)
 
             elif metrica_atual == 'calmar':
-                recompensa = retorno_excesso / (max_drawdown + 1e-6)
+                if retorno_excesso < 0:
+                    recompensa = retorno_excesso / (max_drawdown + 1e-6)
+                else:
+                    recompensa = retorno_excesso * (max_drawdown + 1e-6)
 
             elif metrica_atual == 'min_vol':
                 recompensa = -vol_anual

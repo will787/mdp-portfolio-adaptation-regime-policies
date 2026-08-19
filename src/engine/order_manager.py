@@ -31,6 +31,7 @@ class OrderManager:
                 pesos_reais = portfolio.pesos()
                 
                 todos = set(pesos_reais.keys()).union(set(pesos_meta.keys()))
+                #funcao para controlar custos, evitando rebalanceamentos pequenos
                 desvio = sum(abs(pesos_reais.get(at, 0.0) - pesos_meta.get(at, 0.0)) for at in todos)
 
                 if desvio > self.margem_troca:
@@ -40,9 +41,10 @@ class OrderManager:
                 else:
                     evento = "SEM_TROCA"
             else:
-                # Compara recompensas de Bellman (Política Ótima vs Atual)
-                if reward_nova > reward_atual * (1 + self.margem_troca):
-                    margem_exigida = reward_atual * (1 + self.margem_troca)
+
+                margem_minima = reward_atual + abs(reward_atual) * self.margem_troca
+                if reward_nova > margem_minima:
+                    margem_exigida = margem_minima
                     carteira_pendente = acao_escolhida
                     dias_restantes = 3
                     evento = "ORDEM_CRIADA"
@@ -50,7 +52,7 @@ class OrderManager:
                     evento = "ORDEM_REJEITADA"
 
         # 3. GERENCIADOR DE ATRASO OPERACIONAL (CONTADOR DE 3 DIAS)
-        if carteira_pendente is not None:
+        elif carteira_pendente is not None:
             dias_restantes -= 1
             if dias_restantes > 0:
                 evento = "AGUARDANDO_EXECUCAO"

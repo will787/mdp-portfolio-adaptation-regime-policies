@@ -34,13 +34,15 @@ from src.utils.read_dir import try_read_dir
 
 BASE_DIR = try_read_dir()
 
-#variaveis dependentes (ibovespa_br_returns, dolar_cambio_livre_p_tax_zscore, risco_brasil_zscore, vix_zscore, petro_brent_zscore)
+#variaveis dependentes (ibovespa_br_returns, 
+# dolar_cambio_livre_p_tax_zscore, risco_brasil_zscore, 
+# vix_zscore, petro_brent_zscore)
 features = [
         'ibovespa_br_returns', 'ibovespa_br_momentum', 'ibovespa_br_zscore',
-        'vix_zscore', 'petro_brent_zscore', 'taxa_selic_zscore', 'risco_brasil_zscore',
-        'shanghai_china_pct_change_lag_1m', 's&p500_eua_pct_change_lag_1m', 'inflacao_mensal_pct_change_lag_1m',
-        'dolar_cambio_livre_p_tax_zscore', 'euro_cambio_livre_zscore', 'iene_cambio_livre_zscore',
-        'gas_natural_commodity_zscore', 'milho_commodity_zscore', 'acucar_commodity_zscore'
+        'vix_zscore', 'petro_brent_zscore', 'risco_brasil_zscore',
+        'shanghai_china_pct_change_lag_1m', 's&p500_eua_pct_change_lag_1m', 
+        'inflacao_mensal_pct_change_lag_1m', 'taxa_selic_zscore'
+        'dolar_cambio_livre_p_tax_zscore', 'iene_cambio_livre_zscore' 
 ]
 
 arquivo = BASE_DIR / 'data/gold/macro_features_hmm.parquet'
@@ -48,26 +50,140 @@ print(f"Arquivo Gold: {arquivo}")
 df_features = build_feature_store(arquivo, features, start_date='2002-08-31', end_date='2026-03-01', name_feature_store='features_model')
 
 tickers = [
-    'ITUB4.SA', 'ITSA4.SA', 'BBDC4.SA', 'BBDC3.SA','BBAS3.SA', 'BPAC11.SA', 'SANB11.SA', 'ABCB4.SA',
-    'PETR4.SA', 'PETR3.SA', 'PRIO3.SA','RRRP3.SA', 'RECV3.SA','ENEV3.SA',
-    'VALE3.SA','CSNA3.SA','USIM5.SA','GGBR4.SA', 'AURA33.SA',
-    'SUZB3.SA','KLBN11.SA','KLBN4.SA',
-    'EQTL3.SA','CMIG4.SA','TAEE11.SA','CPFE3.SA','EGIE3.SA',
-    'SBSP3.SA','RAIL3.SA','ECOR3.SA','CCRO3.SA',
-    'ABEV3.SA','LREN3.SA','VIVA3.SA', 'MGLU3.SA','BHIA3.SA','AMER3.SA','PCAR3.SA',
-    'RDOR3.SA','HAPV3.SA','FLRY3.SA', 'TOTS3.SA','POSI3.SA', 'MDNE3.SA',
-    'WEGE3.SA','EMBR3.SA','BBSE3.SA','CXSE3.SA','PSSA3.SA',
-    'VIVT3.SA','TIMS3.SA', 'MULT3.SA','ALOS3.SA',
-    'CYRE3.SA','MRVE3.SA','EZTC3.SA', 'JBSS3.SA','BRFS3.SA','MRFG3.SA',
-    'IRBR3.SA','COGN3.SA','OIBR3.SA','GOLL4.SA', 'LJQQ3.SA', 'ANIM3.SA', 'AZUL4.SA',
-    'KEPL3.SA', 'FRAS3.SA', 'ROMI3.SA', 'UNIP6.SA', 'CSUD3.SA', 'CVCB3.SA', 'VIIA3.SA',
-    'B3SA3.SA','RENT3.SA','MOVI3.SA','SLCE3.SA','SMTO3.SA','CMIN3.SA','YDUQ3.SA','CPLE6.SA','BRKM5.SA','LWSA3.SA',
-    'GOLL4.SA', 'ENBR3.SA', 'ALUP11.SA', 'CSMG3.SA', 'BRAP4.SA', 'AGRO3.SA', 'BPAN4.SA', 'SOJA3.SA',
-    'CPLE3.SA', 'TRPL4.SA', 'IGTI11.SA', 'ARZZ3.SA', 'LIGT3.SA',
-    'GOAU4.SA','ELET3.SA','ELET6.SA','ISAE4.SA'
+    # Bancos & Serviços Financeiros
+    'ITUB4.SA',
+    'ITSA4.SA',
+    'BBDC4.SA',
+    'BBDC3.SA',
+    'BBAS3.SA',
+    'BPAC11.SA',
+    'SANB11.SA',
+    'ABCB4.SA',
+    'BPAN4.SA',
+    'B3SA3.SA',
+    'BBSE3.SA',
+    'CXSE3.SA',
+    'PSSA3.SA',
+    'IRBR3.SA',
+    # Petróleo, Gás & Petroquímica
+    'PETR4.SA',
+    'PETR3.SA',
+    'PRIO3.SA',
+    'BRAV3.SA',  # ex-RRRP3 / 3R + Enauta
+    'RECV3.SA',
+    'ENEV3.SA',
+    'VBBR3.SA',  # Vibra
+    'UGPA3.SA',  # Ultrapar
+    'BRKM5.SA',
+    'UNIP6.SA',
+    # Mineração, Siderurgia & Papel/Celulose
+    'VALE3.SA',
+    'CSNA3.SA',
+    'USIM5.SA',
+    'GGBR4.SA',
+    'GOAU4.SA',
+    'CMIN3.SA',
+    'BRAP4.SA',
+    'AURA33.SA',
+    'SUZB3.SA',
+    'KLBN11.SA',
+    'KLBN4.SA',
+    # Energia Elétrica & Saneamento
+    'EQTL3.SA',
+    'CMIG4.SA',
+    'TAEE11.SA',
+    'CPFE3.SA',
+    'EGIE3.SA',
+    'SBSP3.SA',
+    'CSMG3.SA',
+    'SAPR11.SA',  # Sanepar
+    'CPLE6.SA',
+    'CPLE3.SA',
+    'TRPL4.SA',
+    'ISAE4.SA',
+    'ALUP11.SA',
+    'ELET3.SA',
+    'ELET6.SA',
+    'LIGT3.SA',
+    # Varejo, Consumo & Saúde
+    'ABEV3.SA',
+    'RADL3.SA',  # Raia Drogasil
+    'ASAI3.SA',  # Assaí
+    'CRFB3.SA',  # Carrefour
+    'NTCO3.SA',  # Natura
+    'HYPE3.SA',  # Hypera
+    'LREN3.SA',
+    'VIVA3.SA',
+    'MGLU3.SA',
+    'BHIA3.SA',
+    'AMER3.SA',
+    'PCAR3.SA',
+    'LJQQ3.SA',
+    'CVCB3.SA',
+    'AZZA3.SA',  # ex-ARZZ3 / Arezzo + Soma
+    'SMFT3.SA',  # Smart Fit
+    'RDOR3.SA',
+    'HAPV3.SA',
+    'FLRY3.SA',
+    # Bens de Capital, Indústria & Tecnologia
+    'WEGE3.SA',
+    'EMBR3.SA',
+    'TOTS3.SA',
+    'POSI3.SA',
+    'LWSA3.SA',
+    'INTB3.SA',  # Intelbras
+    'KEPL3.SA',
+    'FRAS3.SA',
+    'ROMI3.SA',
+    'POMO4.SA',  # Marcopolo
+    'GGPS3.SA',  # GPS
+    'STBP3.SA',  # Santos Brasil
+    # Logística & Transporte
+    'RAIL3.SA',
+    'ECOR3.SA',
+    'CCRO3.SA',
+    'RENT3.SA',
+    'MOVI3.SA',
+    'AZUL4.SA',
+    'GOLL4.SA',
+    # Imobiliário & Construção
+    'MULT3.SA',
+    'ALOS3.SA',
+    'IGTI11.SA',
+    'CYRE3.SA',
+    'MRVE3.SA',
+    'EZTC3.SA',
+    'MDNE3.SA',
+    'CURY3.SA',  # Cury
+    'DIRR3.SA',  # Direcional
+    'CSUD3.SA',
+    # Agronegócio & Proteína
+    'JBSS3.SA',
+    'BRFS3.SA',
+    'MRFG3.SA',
+    'SLCE3.SA',
+    'SMTO3.SA',
+    'AGRO3.SA',
+    'SOJA3.SA',
+    # Educação & Outros
+    'COGN3.SA',
+    'YDUQ3.SA',
+    'ANIM3.SA',
+    'OIBR3.SA',
 ]
 
 tickers_unicos = list(dict.fromkeys(tickers))
+
+caminho = BASE_DIR / 'data/stocks/stocks_segmentos.csv'
+df = pd.read_csv(caminho, sep=',')
+tickers = df['symbol']
+carteiras = []
+for a in tickers:
+    if len(a) <= 5:
+        carteiras.append(a+'.SA')
+
+
+# %%
 retornos_sinal, retornos_execucao, ativos_risco, colunas_operacao = pipeline_returns(tickers_unicos, BASE_DIR)
 
 datas_comuns = df_features.index.intersection(retornos_sinal.index).intersection(retornos_execucao.index)
@@ -85,7 +201,7 @@ df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forw
     acoes_disponiveis=ativos_risco, 
     colunas_hmm=df_features.columns, 
     colunas_operacao=colunas_operacao,
-    ano_inicio_operacao=2010, 
+    ano_inicio_operacao=2015, 
     janela_teste=1, 
     metrica_otimizacao='adaptativo',
     anos_memoria_treino=4, 
@@ -96,7 +212,8 @@ df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forw
     custo_slippage=0.005,              
     capital_inicial=100000,
     numero_ativos=20,
-    matriz_transicao="fixa"
+    matriz_transicao="fixa",
+    alpha_ema=0.20
 )
 # %%
 vis.plot_full_history(df_resultado, ano_inicio=2010)
@@ -104,7 +221,7 @@ vis.plot_regimes_historicos(df_resultado)
 vis.plot_heatmap_alpha_mensal(df_resultado)
 vis.analise_comparativa_benchmark_flag(df_resultado, df_features,flag_vline=1)
 vis.plot_scatter_retornos_mensais(df_resultado, coluna_bench='Retorno_Benchmark_Hibrido_Dinamico')
-#vis.plot_distribuicao_retornos(df_resultado)
+vis.plot_distribuicao_retornos(df_resultado)
 vis.analise_atribuicao_alpha(df_resultado)
 vis.plot_evolucao_alocacao(df_resultado)
 vis.plot_retorno_anual_comparativo(df_resultado)
@@ -477,112 +594,529 @@ df_regimes_summary = analisar_resultados_por_regime(df_resultado)
 
 # %%
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+from pathlib import Path
+
+# 1. Definir o arquivo
+arquivo = BASE_DIR / 'data/gold/macro_features_hmm.parquet'
+print(f"Arquivo Gold: {arquivo}")
+
+# 2. Ler as colunas reais existentes no Parquet
+colunas_disponiveis = pd.read_parquet(arquivo).columns.tolist()
+
+# 3. Lista de features desejadas
+features_desejadas = [
+    'ibovespa_br_returns',
+    'ibovespa_br_momentum',
+    'ibovespa_br_zscore',
+    'vix_zscore',
+    'petro_brent_zscore',
+    'taxa_selic_zscore',
+    'risco_brasil_zscore',
+    'shanghai_china_pct_change_lag_1m',
+    's&p500_eua_pct_change_lag_1m',
+    'inflacao_mensal_pct_change_lag_1m',
+    'dolar_cambio_livre_p_tax_zscore',
+    'iene_cambio_livre_zscore',
+]
+
+# 4. Filtrar apenas as colunas que realmente existem no arquivo Parquet
+features_validas = [f for f in features_desejadas if f in colunas_disponiveis]
+
+print(
+    f"✅ Features válidas carregadas no df_features ({len(features_validas)}):"
+)
+print(features_validas)
+
+# 5. Carregar o Feature Store
+df_features = build_feature_store(
+    arquivo,
+    features_validas,
+    start_date='2002-08-31',
+    end_date='2026-03-01',
+    name_feature_store='features_model',
+)
+
+# 6. Mapear os grupos de teste APENAS com colunas que realmente existem em df_features
+coluna_base = 'ibovespa_br_returns'
+
+# Dicionário garantindo que a coluna_base está em TODOS os grupos
+conjuntos_features = {
+    # 1. Todas as variáveis válidas
+    'Todas_Features': features_validas,
+    # 2. Fatores Brasil + Ibov Returns
+    'Fatores_Brasil': list(
+        set([
+            coluna_base,
+            'taxa_selic_zscore',
+            'risco_brasil_zscore',
+            'inflacao_mensal_pct_change_lag_1m',
+            'dolar_cambio_livre_p_tax_zscore',
+        ])
+        & set(features_validas)
+    ),
+    # 3. Fatores Globais + Ibov Returns
+    'Fatores_Globais': list(
+        set([
+            coluna_base,
+            'vix_zscore',
+            'petro_brent_zscore',
+            's&p500_eua_pct_change_lag_1m',
+            'shanghai_china_pct_change_lag_1m',
+        ])
+        & set(features_validas)
+    ),
+    # 4. Apenas Indicadores de Preço do Ibovespa
+    'Apenas_Ibovespa': list(
+        set([coluna_base, 'ibovespa_br_momentum', 'ibovespa_br_zscore'])
+        & set(features_validas)
+    ),
+
+    'Feature_Selecionados': list(
+        set([coluna_base, 'ibovespa_br_momentum', 'ibovespa_br_zscore'])
+        & set(features_validas)
+    ),
+}
+
+# Remover grupos sem colunas
+conjuntos_features = {
+    nome: cols for nome, cols in conjuntos_features.items() if len(cols) > 0
+}
+
 
 def calcular_drawdown_durations(serie_patrimonio):
-    # Encontra o pico acumulado (máximas históricas)
-    picos = serie_patrimonio.cummax()
-    
-    # Cria uma máscara booleana: True se estiver em drawdown, False se bateu nova máxima
-    em_drawdown = serie_patrimonio < picos
-    
-    # Calcula a duração de cada período de drawdown em dias úteis
-    duracoes = []
-    duracao_atual = 0
-    
-    for flag in em_drawdown:
-        if flag:
-            duracao_atual += 1
-        else:
-            if duracao_atual > 0:
-                duracoes.append(duracao_atual)
-            duracao_atual = 0
-            
-    # Se o backtest terminou enquanto o fundo ainda estava em drawdown:
-    if duracao_atual > 0:
+  picos = serie_patrimonio.cummax()
+  em_drawdown = serie_patrimonio < picos
+
+  duracoes = []
+  duracao_atual = 0
+
+  for flag in em_drawdown:
+    if flag:
+      duracao_atual += 1
+    else:
+      if duracao_atual > 0:
         duracoes.append(duracao_atual)
-        
-    if len(duracoes) == 0:
-        return 0.0, 0.0
-        
-    return np.max(duracoes), np.mean(duracoes)
+      duracao_atual = 0
 
-# Lista para consolidar os dicionários de métricas
-metricas_stress = []
+  if duracao_atual > 0:
+    duracoes.append(duracao_atual)
 
-metricas_stress_com_duration = []
+  if len(duracoes) == 0:
+    return 0.0, 0.0
 
-for limite in [0.08,0.10]:
-    print(f"Processando Limite: {limite*100:.1f}%...")
-    for regime in ["fixa", "adaptativa"]:
-        print(f"Processando Durações: Regime = {regime} | Limite = {limite*100:.1f}%...")
-        for slippage in [0.003, 0.005]:
-            print(f"Processando Durações: Memória = {regime} | Slippage = {slippage*100:.1f}%...")
-            
-            # 1. Roda o seu motor quantitativo
-            df_res, _, _, _, _ = run_walk_forward_motor(
-                df_features=df_features, 
-                retornos_sinal=retornos_sinal,         # Usado no Treino / HMM / Bellman / Scores
-                retornos_execucao=retornos_execucao,   # Usado estritamente no Teste Diário físico
-                acoes_disponiveis=ativos_risco, 
-                colunas_hmm=df_features.columns, 
-                colunas_operacao=colunas_operacao,
-                ano_inicio_operacao=2010, 
-                janela_teste=1, 
-                metrica_otimizacao='adaptativo',
-                tempo_regime=22, 
-                limite_max_por_ativo=limite,
-                custo_corretagem=0.005,          
-                capital_inicial=100000,
-                anos_memoria_treino=4,
-                custo_slippage=slippage,
-                matriz_transicao=regime
-            )
-            
-            df_res.index = pd.to_datetime(df_res.index)
-            df_res = df_res.sort_index()
-            
-            # 2. Métricas de retorno tradicionais
-            patrimonio_inicial = df_res['Patrimonio'].iloc[0]
-            patrimonio_final = df_res['Patrimonio'].iloc[-1]
-            anos = len(df_res) / 252.0
-            cagr = (patrimonio_final / patrimonio_inicial) ** (1 / anos) - 1
-            
-            retornos = df_res['Retorno_Modelo'].dropna()
-            vol = retornos.std() * np.sqrt(252)
-            retorno_anual_comp = (1 + retornos.mean()) ** 252 - 1
-            sharpe = retorno_anual_comp / vol if vol != 0 else 0
-            
-            # 3. Métricas de profundidade do risco
-            rolling_max = df_res['Patrimonio'].cummax()
-            drawdown = (df_res['Patrimonio'] - rolling_max) / rolling_max
-            max_dd = drawdown.min()
-            
-            # 4. NOVAS MÉTRICAS: Métricas de Tempo do Risco (Duration)
-            max_duration_dias, mean_duration_dias = calcular_drawdown_durations(df_res['Patrimonio'])
-            
-            # Convertendo dias úteis de mercado para uma aproximação comercial em meses (21 dias úteis/mês)
-            max_duration_meses = max_duration_dias / 21.0
-            mean_duration_meses = mean_duration_dias / 21.0
-            
-            metricas_stress_com_duration.append({
-                "Slippage (%)": f"{slippage * 100:.1f}%",
-                "Regime": regime,
-                "Limite (%)": f"{limite * 100:.1f}%",
-                "CAGR": f"{cagr * 100:.2f}%",
-                "Sharpe": f"{sharpe:.2f}",
-                "Max DD": f"{max_dd * 100:.2f}%",
-                "Max Duration (Meses)": f"{max_duration_meses:.1f} M",
-                "Duração Média (Meses)": f"{mean_duration_meses:.1f} M"
-            })
+  return np.max(duracoes), np.mean(duracoes)
 
-# Exibe o relatório institucional de encerramento do projeto
-df_relatorio_final = pd.DataFrame(metricas_stress_com_duration)
-print("\n" + "="*33 + " RELATÓRIO FINAL DE ESTRESSE & DURABILIDADE " + "="*33)
+
+metricas_stress_com_features = []
+
+# 7. Loop de Execução
+for limite in [0.08, 0.10]:
+  for regime in ['fixa', 'adaptativa']:
+    for slippage in [0.003, 0.005]:
+      for nome_grupo, colunas_grupo in conjuntos_features.items():
+
+        cols_validas = [c for c in colunas_grupo if c in df_features.columns]
+        if not cols_validas:
+          continue
+
+        print(
+            f"Rodando: Grupo={nome_grupo} ({len(cols_validas)} cols) |"
+            f" Reg={regime} | Lim={limite*100:.0f}% |"
+            f" Slip={slippage*100:.1f}%..."
+        )
+
+        # ATENÇÃO: Passamos df_features completo e filtramos apenas colunas_hmm=cols_validas
+        df_res, _, _, _, _ = run_walk_forward_motor(
+            df_features=df_features,  # Mantém o df_features completo para o motor
+            retornos_sinal=retornos_sinal,
+            retornos_execucao=retornos_execucao,
+            acoes_disponiveis=ativos_risco,
+            colunas_hmm=cols_validas,  # O HMM TREINA APENAS COM AS COLUNAS DO GRUPO!
+            colunas_operacao=colunas_operacao,
+            ano_inicio_operacao=2010,
+            janela_teste=1,
+            metrica_otimizacao='adaptativo',
+            tempo_regime=22,
+            limite_max_por_ativo=limite,
+            custo_corretagem=0.005,
+            capital_inicial=100000,
+            anos_memoria_treino=4,
+            custo_slippage=slippage,
+            matriz_transicao=regime,
+        )
+
+        df_res.index = pd.to_datetime(df_res.index)
+        df_res = df_res.sort_index()
+
+        # Métricas de Retorno e Risco
+        patrimonio_inicial = df_res['Patrimonio'].iloc[0]
+        patrimonio_final = df_res['Patrimonio'].iloc[-1]
+        anos = len(df_res) / 252.0
+        cagr = (patrimonio_final / patrimonio_inicial) ** (1 / anos) - 1
+
+        retornos = df_res['Retorno_Modelo'].dropna()
+        vol = retornos.std() * np.sqrt(252)
+        retorno_anual_comp = (1 + retornos.mean()) ** 252 - 1
+        sharpe = retorno_anual_comp / vol if vol != 0 else 0
+
+        rolling_max = df_res['Patrimonio'].cummax()
+        drawdown = (df_res['Patrimonio'] - rolling_max) / rolling_max
+        max_dd = drawdown.min()
+
+        max_duration_dias, mean_duration_dias = calcular_drawdown_durations(
+            df_res['Patrimonio']
+        )
+        max_duration_meses = max_duration_dias / 21.0
+        mean_duration_meses = mean_duration_dias / 21.0
+
+        metricas_stress_com_features.append({
+            'Grupo Features': nome_grupo,
+            'N_Features': len(cols_validas),
+            'Slippage (%)': f'{slippage * 100:.1f}%',
+            'Regime': regime,
+            'Limite (%)': f'{limite * 100:.1f}%',
+            'CAGR': f'{cagr * 100:.2f}%',
+            'Sharpe': f'{sharpe:.2f}',
+            'Max DD': f'{max_dd * 100:.2f}%',
+            'Max Duration (M)': f'{max_duration_meses:.1f} M',
+            'Duração Média (M)': f'{mean_duration_meses:.1f} M',
+        })
+
+# 8. Exibir e Salvar o Relatório
+df_relatorio_final = pd.DataFrame(metricas_stress_com_features)
+print('\n' + '=' * 33 + ' RELATÓRIO FINAL DE ESTRESSE & FEATURES ' + '=' * 33)
 print(df_relatorio_final.to_string(index=False))
-print("="*110)
+print('=' * 110)
 
 df_relatorio_final.to_csv('df_relatorio_final_simulacoes.csv')
+
+# %%
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+
+# 1. Definir o arquivo
+arquivo = BASE_DIR / 'data/gold/macro_features_hmm.parquet'
+print(f'Arquivo Gold: {arquivo}')
+
+# 2. Ler as colunas reais no Parquet
+colunas_disponiveis = pd.read_parquet(arquivo).columns.tolist()
+
+# 3. Features desejadas
+features_desejadas = [
+    'ibovespa_br_returns',
+    'ibovespa_br_momentum',
+    'ibovespa_br_zscore',
+    'vix_zscore',
+    'petro_brent_zscore',
+    'taxa_selic_zscore',
+    'risco_brasil_zscore',
+    'shanghai_china_returns',
+    's&p500_eua_returns',
+    'inflacao_mensal_pct_change_lag_1m',
+    'dolar_cambio_livre_p_tax_zscore',
+    'euro_cambio_livre_zscore',
+    'iene_cambio_livre_zscore',
+]
+
+features_validas = [f for f in features_desejadas if f in colunas_disponiveis]
+
+df_features = build_feature_store(
+    arquivo,
+    features_validas,
+    start_date='2002-08-31',
+    end_date='2026-03-01',
+    name_feature_store='features_model',
+)
+
+# 4. Mapear os grupos de teste
+coluna_base = 'ibovespa_br_returns'
+
+conjuntos_features = {
+    'Todas_Features': features_validas,
+    'Fatores_Brasil': list(
+        set([
+            coluna_base,
+            'taxa_selic_zscore',
+            'risco_brasil_zscore',
+            'inflacao_mensal_pct_change_lag_1m',
+            'dolar_cambio_livre_p_tax_zscore',
+        ])
+        & set(features_validas)
+    ),
+    'Fatores_Globais': list(
+        set([
+            coluna_base,
+            'vix_zscore',
+            'petro_brent_zscore',
+            's&p500_eua_returns',
+            'shanghai_china_returns',
+            'euro_cambio_livre_zscore'
+            'iene_cambio_livre_zscore',
+            'dolar_cambio_livre_p_tax_zscore'
+        ])
+        & set(features_validas)
+    ),
+    'Apenas_Ibovespa': list(
+        set([coluna_base, 'ibovespa_br_momentum', 'ibovespa_br_zscore'])
+        & set(features_validas)
+    ),
+}
+
+conjuntos_features = {
+    nome: cols for nome, cols in conjuntos_features.items() if len(cols) > 0
+}
+
+
+def calcular_drawdown_durations(serie_patrimonio):
+  picos = serie_patrimonio.cummax()
+  em_drawdown = serie_patrimonio < picos
+  duracoes = []
+  duracao_atual = 0
+
+  for flag in em_drawdown:
+    if flag:
+      duracao_atual += 1
+    else:
+      if duracao_atual > 0:
+        duracoes.append(duracao_atual)
+      duracao_atual = 0
+
+  if duracao_atual > 0:
+    duracoes.append(duracao_atual)
+
+  if len(duracoes) == 0:
+    return 0.0, 0.0
+
+  return np.max(duracoes), np.mean(duracoes)
+
+
+# Dicionário para armazenar as curvas diárias de cada combinação
+resultados_por_estrategia = {}
+metricas_stress_com_features = []
+
+# 5. Loop de Execução
+for limite in [0.10]:  # Focado no limite de 10%
+  for regime in ['adaptativa', 'fixa']:
+    for slippage in [0.005]:  # Focado em 0.5% slippage
+      for nome_grupo, colunas_grupo in conjuntos_features.items():
+
+        cols_validas = [c for c in colunas_grupo if c in df_features.columns]
+        if not cols_validas:
+          continue
+
+        print(
+            f'Rodando: {nome_grupo} | Regime={regime} | Limite={limite*100:.0f}%'
+            '...'
+        )
+
+        df_res, _, _, _, _ = run_walk_forward_motor(
+            df_features=df_features,
+            retornos_sinal=retornos_sinal,
+            retornos_execucao=retornos_execucao,
+            acoes_disponiveis=ativos_risco,
+            colunas_hmm=cols_validas,
+            colunas_operacao=colunas_operacao,
+            ano_inicio_operacao=2010,
+            janela_teste=1,
+            metrica_otimizacao='adaptativo',
+            tempo_regime=22,
+            limite_max_por_ativo=limite,
+            custo_corretagem=0.005,
+            capital_inicial=100000,
+            anos_memoria_treino=4,
+            custo_slippage=slippage,
+            matriz_transicao=regime,
+        )
+
+        df_res.index = pd.to_datetime(df_res.index)
+        df_res = df_res.sort_index()
+
+        # Armazena o dataframe de resultado para o gráfico comparativo
+        nome_curva = f'{nome_grupo} ({regime})'
+        resultados_por_estrategia[nome_curva] = df_res.copy()
+
+        # Métricas
+        patrimonio_inicial = df_res['Patrimonio'].iloc[0]
+        patrimonio_final = df_res['Patrimonio'].iloc[-1]
+        anos = len(df_res) / 252.0
+        cagr = (patrimonio_final / patrimonio_inicial) ** (1 / anos) - 1
+
+        retornos = df_res['Retorno_Modelo'].dropna()
+        vol = retornos.std() * np.sqrt(252)
+        retorno_anual_comp = (1 + retornos.mean()) ** 252 - 1
+        sharpe = retorno_anual_comp / vol if vol != 0 else 0
+
+        rolling_max = df_res['Patrimonio'].cummax()
+        drawdown = (df_res['Patrimonio'] - rolling_max) / rolling_max
+        max_dd = drawdown.min()
+
+        max_duration_dias, mean_duration_dias = calcular_drawdown_durations(
+            df_res['Patrimonio']
+        )
+        max_duration_meses = max_duration_dias / 21.0
+        mean_duration_meses = mean_duration_dias / 21.0
+
+        metricas_stress_com_features.append({
+            'Estratégia / Grupo': nome_grupo,
+            'Regime': regime,
+            'CAGR': f'{cagr * 100:.2f}%',
+            'Sharpe': f'{sharpe:.2f}',
+            'Max DD': f'{max_dd * 100:.2f}%',
+            'Max Duration (M)': f'{max_duration_meses:.1f} M',
+        })
+
+df_relatorio_final = pd.DataFrame(metricas_stress_com_features)
+print('\n' + '=' * 33 + ' RELATÓRIO FINAL ' + '=' * 33)
+print(df_relatorio_final.to_string(index=False))
+
+def plot_comparativo_estrategias(
+    dict_resultados, ano_inicio=2015, tema_escuro=True
+):
+  """Gera um gráfico comparativo de Retorno Acumulado contínuo (%) de todas as
+
+  estrategias/grupos testados contra o Benchmark.
+  """
+  fig = go.Figure()
+
+  # Cores elegantes para diferenciar cada grupo no gráfico
+  paleta_cores = [
+      "#38bdf8",
+      "#10b981",
+      "#a855f7",
+      "#f59e0b",
+      "#ec4899",
+      "#06b6d4",
+  ]
+  cor_bg = "#0b1329" if tema_escuro else "white"
+  cor_texto = "#e2e8f0" if tema_escuro else "#1e293b"
+  cor_grid = (
+      "rgba(255, 255, 255, 0.08)" if tema_escuro else "rgba(220, 220, 220, 0.6)"
+  )
+
+  benchmark_adicionado = False
+
+  for i, (nome_est, df_res) in enumerate(dict_resultados.items()):
+    df = df_res.copy()
+
+    if ano_inicio is not None:
+      df = df[df.index.year >= ano_inicio]
+
+    if df.empty:
+      continue
+
+    # 1. Adicionar o Benchmark Dinâmico apenas uma vez no fundo
+    if not benchmark_adicionado and "Retorno_Benchmark_Hibrido_Dinamico" in df:
+      df["Acumulado_Bench"] = (
+          1 + df["Retorno_Benchmark_Hibrido_Dinamico"]
+      ).cumprod() - 1
+      df["Acumulado_Bench"] *= 100
+
+      fig.add_trace(
+          go.Scatter(
+              x=df.index,
+              y=df["Acumulado_Bench"],
+              mode="lines",
+              name="Benchmark Dinâmico",
+              line=dict(color="#f97316", width=2, dash="dash"),
+          )
+      )
+      benchmark_adicionado = True
+
+    # 2. Calcular Retorno Acumulado (%) da Estratégia Atual
+    df["Acumulado_Estrategia"] = (1 + df["Retorno_Modelo"]).cumprod() - 1
+    df["Acumulado_Estrategia"] *= 100
+
+    cor = paleta_cores[i % len(paleta_cores)]
+
+    # Adicionar a linha da estratégia
+    fig.add_trace(
+        go.Scatter(
+            x=df.index,
+            y=df["Acumulado_Estrategia"],
+            mode="lines",
+            name=nome_est,
+            line=dict(color=cor, width=2.5),
+        )
+    )
+
+    # Anotação final na ponta da linha
+    retorno_final = df["Acumulado_Estrategia"].iloc[-1]
+    fig.add_annotation(
+        x=df.index[-1],
+        y=retorno_final,
+        text=f"{nome_est}: {retorno_final:.1f}%",
+        showarrow=True,
+        arrowhead=1,
+        ax=40,
+        ay=-10 * (i + 1),
+        font=dict(color=cor, size=11, family="Arial"),
+    )
+
+  # Configuração de Layout para Apresentação
+  fig.update_layout(
+      template="plotly_dark" if tema_escuro else "plotly_white",
+      paper_bgcolor=cor_bg,
+      plot_bgcolor=cor_bg,
+      font=dict(family="Arial, sans-serif", size=12, color=cor_texto),
+      title=dict(
+          text=(
+              "<b>Comparativo de Retorno Acumulado por Grupo de Features"
+              " (K-NESIAN)</b><br><sup>Desempenho histórico Out-of-Sample"
+              " acumulado (%)</sup>"
+          ),
+          font=dict(size=16, color="#38bdf8"),
+          x=0.02,
+      ),
+      xaxis_title="",
+      yaxis_title="Retorno Acumulado (%)",
+      hovermode="x unified",
+      xaxis=dict(showgrid=True, gridcolor=cor_grid, zeroline=False),
+      yaxis=dict(showgrid=True, gridcolor=cor_grid, zeroline=True),
+      legend=dict(
+          orientation="h",
+          yanchor="bottom",
+          y=1.02,
+          xanchor="right",
+          x=1,
+          bgcolor="rgba(15, 23, 42, 0.8)",
+      ),
+      margin=dict(l=40, r=40, t=80, b=40),
+  )
+
+  fig.show()
+
+
+# Chamar a função comparativa ao final das rodadas:
+plot_comparativo_estrategias(resultados_por_estrategia, ano_inicio=2015)
+
+# %%
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+seg = pd.read_csv('data/stocks/stocks_segmentos.csv')
+df_res = pd.read_csv('df_resultados.csv')
+colunas_sa = [col for col in df_res.columns if col.endswith('.SA')]
+
+# 2. Junta com as colunas iniciais que você quer manter (ex: 'Evento' e 'Carteira_Atual')
+colunas_finais = ['Data','Evento', 'Carteira_Atual'] + colunas_sa
+
+df_filtrado = df_res[colunas_finais]
+
+
+df_periodo = df_filtrado[(df_filtrado['Data'] >= '2021-01-01') & (df_filtrado['Data'] <= '2022-12-31')]
+
+# 4. Define a Data como Index temporário para o gráfico usar no eixo X automaticamente
+df_grafico = df_periodo.set_index('Data')[colunas_sa]
+
+# 5. Plota o gráfico com todas as linhas de ativos .SA
+df_grafico.plot(figsize=(12, 6))
+plt.title('Performance dos Ativos .SA (2021 - 2022)')
+plt.grid(True)
+plt.show()
 
 # %%

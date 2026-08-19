@@ -139,7 +139,7 @@ class Portfolio:
             custo = self.cdi_custo
 
             if saldo <= 0 or valor_resgate <= 0:
-                return 0.0
+                return 0.0, 0.0
 
             valor_resgate = min(valor_resgate, saldo)
             rendimento = max(0, saldo - custo)

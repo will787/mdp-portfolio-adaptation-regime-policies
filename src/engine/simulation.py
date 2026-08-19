@@ -7,7 +7,8 @@ import pandas as pd
 
 
 def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, colunas_hmm, colunas_operacao, tempo_regime,
-                         custo_corretagem, custo_slippage,carteira_inicial, carteira_pendente_inicial ,margem_troca=0.20, alpha_ema=0.20, limite_min_por_ativo=0.03, aliquota_cdi=0.225):
+                         custo_corretagem, custo_slippage,carteira_inicial, carteira_pendente_inicial ,margem_troca=0.20, 
+                         alpha_ema=0.20, limite_min_por_ativo=0.03, aliquota_cdi=0.225, anos_memoria=4):
   
     """"
         Simulação do pregão dia a dia de forma isolada.
@@ -15,6 +16,7 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
 
     historico_x =  list(brain.X_treino_scaled)
     X_teste_cru = df_features_teste.loc[df_teste_acoes.index, colunas_hmm].values
+    max_passos_memoria = anos_memoria * 252
 
     carteira_atual, carteira_pendente = carteira_inicial, carteira_pendente_inicial #somente pra primeira janela
     dias_restantes, dias_holding = 0, tempo_regime
@@ -28,7 +30,8 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
         data_atual = df_teste_acoes.index[i]
         X_scaled_ontem = brain.scaler.transform(X_teste_cru[i - 1].reshape(1, -1)).flatten()
         historico_x.append(X_scaled_ontem)
-        prob_s_ontem = brain.modelo.predict_proba(np.array(historico_x))[-1]
+        janela_inferencia = np.array(historico_x[-max_passos_memoria:])
+        prob_s_ontem = brain.modelo.predict_proba(np.array(janela_inferencia))[-1]
         estado_hmm_atual = np.argmax(prob_s_ontem)
 
         prob_regimes_hoje = np.zeros(len(brain.estados_possiveis))
@@ -81,8 +84,9 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
 
         if isinstance(custo_slippage, pd.DataFrame):
             pesos_atuais = portfolio.pesos().drop("Clearing", errors="ignore").to_dict()
-            ativos_operados = list(set(pesos_atuais.keys()) | set(pesos_sinteticos.keys()))
-            ativos_operados = [a for a in ativos_operados if a != "CDI" and  a != "Clearing"] 
+            ativos_atuais_reais = [a for a,w in pesos_atuais.items() if w > 0.001 and a not in ["CDI", "Clearing"]]
+            ativos_alvo_reais = [a for a,w in pesos_sinteticos.items() if w > 0.001 and a not in ["CDI", "Clearing"]]
+            ativos_operados = list(set(ativos_atuais_reais) | set(ativos_alvo_reais))
             if ativos_operados and data_atual in custo_slippage.index:
                 slippage_hoje = custo_slippage.loc[data_atual, ativos_operados].mean()
                 custo_slippage_dia = min(slippage_hoje, 0.05)

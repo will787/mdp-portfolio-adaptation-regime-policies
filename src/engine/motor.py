@@ -67,16 +67,15 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
         mascara_treino = (df_features.index.year >= (ano_teste_inicio - anos_memoria_treino)) & (df_features.index.year < ano_teste_inicio)
         mascara_teste = (df_features.index.year >= ano_teste_inicio) & (df_features.index.year <= ano_teste_fim)
 
-        dados_teste_hmm = df_features[mascara_teste]
         dados_treino_hmm = df_features[mascara_treino]
-
         dados_teste_hmm = df_features[mascara_teste]
         if len (dados_teste_hmm) < 2: 
             continue
 
         brain = MarketBrain()
         brain.treinar_e_otimizar(dados_treino_hmm, retornos_sinal, colunas_hmm, colunas_operacao,
-                                  tempo_regime, metrica_otimizacao, limite_max_por_ativo, limite_min_por_ativo, numero_ativos, matriz_transicao=matriz_transicao)
+                                tempo_regime, metrica_otimizacao, limite_max_por_ativo, limite_min_por_ativo,
+                                numero_ativos, matriz_transicao=matriz_transicao)
 
 
         df_teste_acoes = retornos_execucao.loc[dados_teste_hmm.index].copy()
@@ -99,7 +98,8 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
             margem_troca=margem_troca,
             alpha_ema=alpha_ema,
             limite_min_por_ativo=limite_min_por_ativo,
-            aliquota_cdi=aliquota_cdi
+            aliquota_cdi=aliquota_cdi,
+            anos_memoria=anos_memoria_treino
         )
 
         carteira_acumulada = cart_atual_ac

@@ -16,6 +16,7 @@ def coletar_fluxo_capitais(start_date='2000-01-01', end_date='2026-03-31'):
     series = {
         'meta_taxa_selic': 432,
         'taxa_selic': 11,
+        'DI_over': 12,
         'dolar_cambio_livre': 1, #venda (quanto esta vendendo para comprar real)
         'euro_cambio_livre': 21619,
         'iene_cambio_livre': 21621
@@ -40,9 +41,13 @@ def coletar_fluxo_capitais(start_date='2000-01-01', end_date='2026-03-31'):
     return df_fluxo_capitais
 
 df_bacen = coletar_fluxo_capitais()
+
+
+# todo futuro. -> caso vença
 # %%
 df_bacen.columns = [
     'meta_taxa_selic',
+    ''
     'taxa_selic',
     'dolar_cambio_livre_p_tax',
     'euro_cambio_livre',
@@ -51,4 +56,19 @@ df_bacen.columns = [
 df_bacen.tail(10)
 df_bacen.head()
 df_bacen.to_csv('../data/bronze/dados_bacen.csv', index=True)
+# %%
+from bcb import Expectativas
+
+em = Expectativas()
+ep = em.get_endpoint('ExpectativasMercadoTop5Anuais')# %%
+
+# %%
+
+df = (ep.query()
+      .filter(ep.Indicador == 'Selic')
+      .filter(ep.DataReferencia >= '2026')
+      .select(ep.Data, ep.DataReferencia, ep.Mediana)
+      .collect()
+      )
+df
 # %%

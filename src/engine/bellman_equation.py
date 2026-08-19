@@ -16,22 +16,19 @@ def belmann_equation(states, actions, transactions, rewards, discount_factor=0.9
         delta = 0
         for s in states:
             v_old = v[s]
+
+            expected_future = sum(transactions.get((s, next_states), 0.0) * v[next_states] for next_states in states)
+            immediate_reward = discount_factor * expected_future
+    
             max_q_value = float('-inf')
             best_action = None
 
             for a in actions:
                 #R(s,a)
                 immediate_reward = rewards.get((s, a), 0.0)
-                expected_future = 0.0
-
-                for next_states in states:
-                    prob = transactions.get((s, next_states), 0.0)      
-                    #Equação futura              
-                    expected_future += prob * v[next_states]
-
-                #Q(s,a) = R(s,a) + gamma * Equação futura
                 q_value = immediate_reward + (discount_factor * expected_future)
 
+                #Q(s,a) = R(s,a) + gamma * Equação futura
                 if q_value > max_q_value:
                     max_q_value = q_value
                     best_action = a

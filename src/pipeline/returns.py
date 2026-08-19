@@ -164,3 +164,4 @@ def pipeline_returns_xx(tickers, BASE_DIR):
         colunas_operacao,
         cadastro_ativos
     )
+
