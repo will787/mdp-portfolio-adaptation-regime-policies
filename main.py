@@ -41,7 +41,7 @@ features = [
         'ibovespa_br_returns', 'ibovespa_br_momentum', 'ibovespa_br_zscore',
         'vix_zscore', 'petro_brent_zscore', 'risco_brasil_zscore',
         'shanghai_china_pct_change_lag_1m', 's&p500_eua_pct_change_lag_1m', 
-        'inflacao_mensal_pct_change_lag_1m', 'taxa_selic_zscore'
+        'inflacao_mensal_pct_change_lag_1m', 'taxa_selic_zscore',
         'dolar_cambio_livre_p_tax_zscore', 'iene_cambio_livre_zscore' 
 ]
 
@@ -174,13 +174,13 @@ tickers = [
 
 tickers_unicos = list(dict.fromkeys(tickers))
 
-caminho = BASE_DIR / 'data/stocks/stocks_segmentos.csv'
-df = pd.read_csv(caminho, sep=',')
-tickers = df['symbol']
-carteiras = []
-for a in tickers:
-    if len(a) <= 5:
-        carteiras.append(a+'.SA')
+#caminho = BASE_DIR / 'data/stocks/stocks_segmentos.csv'
+#df = pd.read_csv(caminho, sep=',')
+#tickers = df['symbol']
+#carteiras = []
+#for a in tickers:
+#    if len(a) <= 5:
+#        carteiras.append(a+'.SA')
 
 
 # %%
@@ -213,7 +213,8 @@ df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forw
     capital_inicial=100000,
     numero_ativos=20,
     matriz_transicao="fixa",
-    alpha_ema=0.20
+    alpha_ema=0.20,
+    margem_troca=0.20
 )
 # %%
 vis.plot_full_history(df_resultado, ano_inicio=2010)
@@ -1093,30 +1094,30 @@ def plot_comparativo_estrategias(
 # Chamar a função comparativa ao final das rodadas:
 plot_comparativo_estrategias(resultados_por_estrategia, ano_inicio=2015)
 
+
 # %%
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
+import statsmodels.api as sm
 
-seg = pd.read_csv('data/stocks/stocks_segmentos.csv')
-df_res = pd.read_csv('df_resultados.csv')
-colunas_sa = [col for col in df_res.columns if col.endswith('.SA')]
+df = pd.read_csv('df_resultados.csv')
+r_modelo = df['Retorno_Modelo']
+r_hib = df['Retorno_Benchmark_Hibrido_Dinamico']
 
-# 2. Junta com as colunas iniciais que você quer manter (ex: 'Evento' e 'Carteira_Atual')
-colunas_finais = ['Data','Evento', 'Carteira_Atual'] + colunas_sa
+# Regressão OLS de Excesso de Retorno
+X = sm.add_constant(r_hib)
+ols = sm.OLS(r_modelo, X).fit()
 
-df_filtrado = df_res[colunas_finais]
+alpha_anual = ((1 + ols.params['const']) ** 252) - 1
+t_stat = ols.tvalues['const']
+p_val = ols.pvalues['const']
+ir = (
+    (r_modelo - r_hib).mean() / (r_modelo - r_hib).std()
+) * np.sqrt(252)
 
-
-df_periodo = df_filtrado[(df_filtrado['Data'] >= '2021-01-01') & (df_filtrado['Data'] <= '2022-12-31')]
-
-# 4. Define a Data como Index temporário para o gráfico usar no eixo X automaticamente
-df_grafico = df_periodo.set_index('Data')[colunas_sa]
-
-# 5. Plota o gráfico com todas as linhas de ativos .SA
-df_grafico.plot(figsize=(12, 6))
-plt.title('Performance dos Ativos .SA (2021 - 2022)')
-plt.grid(True)
-plt.show()
+print(f'Alpha Anualizado: {alpha_anual:.2%}')
+print(f't-statistic: {t_stat:.2f}')
+print(f'p-value: {p_val:.6e} (Significativo: {p_val < 0.05})')
+print(f'Information Ratio: {ir:.2f}')
 
 # %%

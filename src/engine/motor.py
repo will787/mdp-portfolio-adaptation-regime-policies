@@ -135,7 +135,8 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
             'Politica_Regime_2': brain.politica_otima.get(2, "100_CDI"),
             'Politica_Regime_3': brain.politica_otima.get(3, "100_CDI"),
             'Composicao_Est_0': comp_0, 'Composicao_Est_1': comp_1, 'Composicao_Est_2': comp_2, 'Composicao_Est_3': comp_3,
-            'Exposicao_Acoes': round(exposicao_media_acoes, 2),
+            'Exposicao_Media_Acoes': round(exposicao_media_acoes, 4),
+            'Carrego_Medio_CDI': round(1 - exposicao_media_acoes, 4),
             'Retorno_Teste_Modelo': round(np.prod(1 + retornos_modelo) - 1, 2),
             'Retorno_Teste_Ibov': round(np.prod(1 + retornos_bench) - 1, 2),
             'Retorno_Teste_Bench_Hibrido': round(np.prod(1 + retornos_bench_hibrido) -1, 2),
@@ -151,7 +152,6 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
         historico["backtest"].extend(logs_backtest)
         historico["carteiras"].extend(logs_carteiras)
         historico["pesos"].extend([{"Data": d["Data"], **{k: v for k, v in d.items() if k in colunas_operacao}} for d in logs_backtest])
-
     # ==========================================================
     # CONVERSÃO DOS 5 DATAINFRAMES
     # ==========================================================

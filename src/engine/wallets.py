@@ -135,7 +135,7 @@ def otimizar_carteira_por_regime(retornos_estado, taxa_livre_risco_diaria, metri
             else:
                 downside_vol_anual = 1e-6
 
-            if retorno_excesso_anual < 0:
+            if retorno_excesso_anual <= 0:
                 return -retorno_excesso_anual * (downside_vol_anual + 1e-6)
             return -retorno_excesso_anual / (downside_vol_anual + 1e-6)
 

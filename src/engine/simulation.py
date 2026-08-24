@@ -144,6 +144,7 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
             'Troca_Aprovada': acao_escolhida != carteira_atual and reward_nova > reward_atual * (1 + margem_troca),
             "Regime_Futuro_Provavel": np.argmax(prob_suavizada),
             "Prob_Regimes": prob_suavizada.copy(),
+            "Pesos_Alvo_Suavizado": pesos_sinteticos.copy(),
             'Carteira_Atual': carteira_atual,
             'Carteira_Pendente': carteira_pendente                    
         })
@@ -158,6 +159,10 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
         })
 
         capital_clearing = resultado['snapshot']['Patrimonio'] - resultado['snapshot']['CDI'] - resultado['snapshot']['Capital_Acoes']
+
+        pesos_alvo_formatados = {
+            f'Alvo_{ativo}': round(peso,4) for ativo,peso in pesos_sinteticos.items()
+        }
 
         logs_backtest.append({
             "Data": data_atual,
@@ -187,7 +192,7 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
             "Custo_Transacao": round(resultado["Custo_Transacao"], 4),
             "Custo_Slippage": round(resultado["Custo_Slippage"], 4),
             "Custo_Corretagem": round(resultado["Custo_Corretagem"], 4),
-            **resultado["pesos"]
+            **resultado["pesos"],
         })
 
     return portfolio, logs_backtest, logs_carteiras ,carteira_atual, carteira_pendente
