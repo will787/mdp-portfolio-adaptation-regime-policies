@@ -21,6 +21,17 @@
         "lag_type": "business_day"
     },
 
+    "taxa_cdi": {
+        "source": "bacen",
+        "frequency": "daily",
+        "transformations": ["z_score"],
+        "feature_type": "macro",
+        "resample_method": null,
+        "fill_method": null,
+        "lag": 1,
+        "lag_type": "business_day"
+    },
+
     "dolar_cambio_livre_p_tax": {
         "source": "bacen",
         "frequency": "daily",
@@ -238,5 +249,16 @@
         "fill_method": "ffill",
         "lag": 1,
         "lag_type": "business_day"
+    },
+    "expectativa_selic_1y": {
+        "source": "macro",
+        "frequency": "daily",
+        "feature_type": "macro",
+        "transformations": ["z_score", "pct_change"],
+        "resample_method": "last",
+        "fill_method": "ffill",
+        "lag": 1,
+        "lag_type": "business_day",
+        "note": "Expectativa Mediana Selic 1Y (T+1). Divulgada na segunda 08h30 com corte na sexta. Lag de 1 dia util garante execucao sem lookahead bias."
     }
 }

@@ -16,7 +16,7 @@ def coletar_fluxo_capitais(start_date='2000-01-01', end_date='2026-03-31'):
     series = {
         'meta_taxa_selic': 432,
         'taxa_selic': 11,
-        'DI_over': 12,
+        'taxa_cdi': 12,
         'dolar_cambio_livre': 1, #venda (quanto esta vendendo para comprar real)
         'euro_cambio_livre': 21619,
         'iene_cambio_livre': 21621
@@ -47,8 +47,8 @@ df_bacen = coletar_fluxo_capitais()
 # %%
 df_bacen.columns = [
     'meta_taxa_selic',
-    ''
     'taxa_selic',
+    'taxa_cdi',
     'dolar_cambio_livre_p_tax',
     'euro_cambio_livre',
     'iene_cambio_livre'
@@ -64,11 +64,69 @@ ep = em.get_endpoint('ExpectativasMercadoTop5Anuais')# %%
 
 # %%
 
-df = (ep.query()
-      .filter(ep.Indicador == 'Selic')
-      .filter(ep.DataReferencia >= '2026')
-      .select(ep.Data, ep.DataReferencia, ep.Mediana)
-      .collect()
-      )
-df
+df = (
+    ep.query()
+    .filter(ep.Indicador == "Selic")
+    .select(
+        ep.Data,
+        ep.DataReferencia,
+        ep.Mediana
+    )
+    .collect()
+)
+
+df["Data"] = pd.to_datetime(df["Data"])
+df["DataReferencia"] = pd.to_numeric(
+    df["DataReferencia"],
+    errors="coerce"
+)
+
+df = df[
+    (df["Data"].dt.year >= 2000) &
+    (df["DataReferencia"] == df["Data"].dt.year + 1)
+]
+
+df = df.rename(columns={
+    "Data": "data",
+    "Mediana": "expectativa_selic_1y"
+})
+
+df = df[
+    ["data", "expectativa_selic_1y"]
+].sort_values("data")
+
+# Remove registros exatamente iguais
+df = df.drop_duplicates(
+    subset=["data", "expectativa_selic_1y"],
+    keep="first"
+)
+
+duplicados = (
+    df[df["data"].duplicated(keep=False)]
+    .sort_values("data")
+)
+
+print(duplicados.head(50))
+
+print(
+    df[df["data"].duplicated(keep=False)]
+    .sort_values("data")
+    .head(50)
+)
+
+
+df = (
+    df.groupby("data", as_index=False)["expectativa_selic_1y"]
+      .mean()
+      .sort_values("data")
+)
+
+df.to_csv(
+    "../data/bronze/expectativas.csv",
+    index=False
+)
+
+
+# %%
+print(df[df["data"].duplicated(keep=False)].head(30))
 # %%

@@ -1,13 +1,14 @@
-
 from pathlib import Path
-import os
-import sys
-import pandas as pd
+import os 
+import sys 
+import pandas as pd 
 import json 
+
 
 
 ROOT = Path.cwd()
 print(ROOT)
+
 
 sys.path.insert(0, str(ROOT))
 from config.paths import BRONZE_DIR, SILVER_DIR, CONFIG_DIR
@@ -17,20 +18,29 @@ with open(CONFIG_DIR / "feature_config.json") as f:
     FEATURE_CONFIG = json.load(f)
 
 def filter_bussines_daily(df):
+    """"
+        alinhamento das data por dia util.
+        retorna a base ajustada por dias util.
+    """
+
     df = df.copy()
     df.index = pd.to_datetime(df.index)
     df = df[df.index.dayofweek < 5]
 
     if 'ibovespa_br' in df.columns:
-        df = df[df["ibovespa_br"].notna()]
+        df = df[df['ibovespa_br'].notna()]
 
-    return df
-
+    return df 
 
 def split_by_frequency(df, feature_cfg):
+    """"
+        Separando bases por mensais e diárias. 
+        retorna as duas bases separadas.
+    """
 
     daily = []
     monthly = []
+
 
     for col in df.columns:
 
@@ -43,10 +53,10 @@ def split_by_frequency(df, feature_cfg):
             print(f"{col} não está no feature_config")
             continue
 
-        if cfg["frequency"] == "daily":
+        if cfg['frequency'] == "daily":
             daily.append(col)
 
-        elif cfg["frequency"] == "monthly":
+        elif cfg['frequency'] == "monthly":
             monthly.append(col)
 
     daily_df = df[["data"] + daily]
@@ -55,21 +65,45 @@ def split_by_frequency(df, feature_cfg):
     return daily_df, monthly_df
 
 
+
+def put_views(bronze_files, feature_config):
+
+    daily_views = []
+    monthly_views = []
+
+    for base in bronze_files:
+
+        df = pd.read_csv(base)
+
+        daily_df, monthly_df = split_by_frequency(df, feature_cfg=feature_config)
+
+        if len(daily_df.columns) > 1:
+            daily_views.append(daily_df)
+
+        if len(monthly_df.columns) > 1:
+            monthly_views.append(monthly_df)
+
+
+    return daily_views, monthly_views
+
 bronze_files = list(BRONZE_DIR.glob("*.csv"))
-daily_views = []
-monthly_views = []
+daily_views, monthly_views = put_views(bronze_files=bronze_files, feature_config=FEATURE_CONFIG)
 
-for base in bronze_files:
+for i, df in enumerate(daily_views):
 
-    df = pd.read_csv(base)
+    temp = df.set_index("data")
 
-    daily_df, monthly_df = split_by_frequency(df, FEATURE_CONFIG)
+    print(f"\n[{i}]")
+    print("Colunas:", temp.columns.tolist())
+    print("Shape:", temp.shape)
+    print("Índice único:", temp.index.is_unique)
+    print("Duplicados:", temp.index.duplicated().sum())
 
-    if len(daily_df.columns) > 1:
-        daily_views.append(daily_df)
+    if not temp.index.is_unique:
+        print("\nDATAS DUPLICADAS:")
+        print(temp.index[temp.index.duplicated(keep=False)].unique()[:20])
 
-    if len(monthly_df.columns) > 1:
-        monthly_views.append(monthly_df)
+print("\n=================================")
 
 daily = (
     pd.concat(
@@ -80,7 +114,6 @@ daily = (
 )
 
 daily = filter_bussines_daily(daily)
-
 
 monthly = (
     pd.concat(
@@ -100,3 +133,4 @@ for col in monthly.columns:
 
 daily.to_parquet(SILVER_DIR / "daily.parquet")
 monthly.to_parquet(SILVER_DIR / "monthly.parquet")
+

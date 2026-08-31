@@ -8,7 +8,7 @@ import pandas as pd
 
 def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, colunas_hmm, colunas_operacao, tempo_regime,
                          custo_corretagem, custo_slippage,carteira_inicial, carteira_pendente_inicial ,margem_troca=0.20, 
-                         alpha_ema=0.20, limite_min_por_ativo=0.03, aliquota_cdi=0.225, anos_memoria=4):
+                         alpha_ema=0.20, limite_min_por_ativo=0.03, aliquota_cdi=0.225, anos_memoria=4, capital_inicial=100000):
   
     """"
         Simulação do pregão dia a dia de forma isolada.
@@ -96,6 +96,11 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
             custo_slippage_dia = custo_slippage
             
 
+        if len(logs_backtest) == 0:
+            patrimonio_anterior = portfolio.patrimonio_total()
+        else:
+            patrimonio_anterior = logs_backtest[-1]["Patrimonio"]
+
         resultado = executar_estrategia(
             portfolio=portfolio,
             retornos_dia=df_teste_acoes.iloc[i].to_dict(),
@@ -115,11 +120,12 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
             custo_slippage=custo_slippage_dia, #custo_slippage
             reward_sintetico=reward_sintetico
         )
+        patrimonio_atual = resultado["snapshot"]["Patrimonio"]
+        retorno_modelo_dia = (patrimonio_atual / patrimonio_anterior) - 1
 
-        patrimonio_anterior = portfolio.patrimonio if i == 1 else logs_backtest[-1]["Patrimonio"]
-        retorno_modelo_dia = (resultado["snapshot"]["Patrimonio"] / patrimonio_anterior) - 1
         retorno_benchmark_dia = df_teste_acoes.iloc[i]["Retorno_Ibov"]
-        retorno_taxa_cdi = df_teste_acoes.iloc[i].get('CDI', 0.0) #pct_change diario
+        retorno_taxa_cdi = df_teste_acoes.iloc[i].get("CDI", 0.0)
+
 
         retorno_bench_hibrido_dia = benchmark_hibrido(retorno_benchmark_dia, retorno_taxa_cdi)
         retorno_bench_hibrido_dinamico = atribuicao_benchmark_dinamico(retorno_benchmark_dia, retorno_taxa_cdi, portfolio.exposicao())

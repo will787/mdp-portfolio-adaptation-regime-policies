@@ -14,31 +14,49 @@ sys.path.insert(0, str(ROOT))
 
 
 def pipeline_returns(tickers, BASE_DIR):
-    """Módulo 2: Prepara as arenas de Sinais e Execução de forma limpa e estável"""
+    """Módulo 2: Prepara as arenas de Sinais e Execução com preços ajustados e alinhamento do CDI."""
     print("2. Construindo Pipeline de Retornos Operacionais...")
-    import yfinance as yf
     
     caminho_selic = BASE_DIR / 'data/bronze/dados_bacen.csv'
-    dados_completos = yf.download(tickers, start="2002-08-31", end="2026-06-01", auto_adjust=False)
+    
+    # Baixa com auto_adjust=False para termos controle explícito das colunas
+    dados_completos = yf.download(tickers, start="2002-08-31", end="2026-06-01", auto_adjust=False, progress=False)
 
     if dados_completos.index.tz is not None:
         dados_completos.index = dados_completos.index.tz_localize(None)
     dados_completos.index.name = "data"
 
+    # 1. Puxa obrigatoriamente o 'Adj Close' para sinais e retornos reais
     dados_adj = dados_completos["Adj Close"].ffill()
-    retornos_sinal = dados_adj.pct_change().fillna(0.0) # Seguro: Retorno 0.0 mantém a média estável
-
+    
+    # Retornos percentuais diários
+    retornos_sinal = dados_adj.pct_change().fillna(0.0)
     retornos_execucao = retornos_sinal.copy()
     
+    # 2. Processa e alinha o CDI / Selic diário
     df_bacen = pd.read_csv(caminho_selic, index_col="data", parse_dates=True)
-    selic_diaria_limpa = (df_bacen['taxa_selic'] / 100.0).ffill().fillna(0.0)
-    cdi_alinhado = selic_diaria_limpa.reindex(retornos_sinal.index).ffill().fillna(0.0)
+    if df_bacen.index.tz is not None:
+        df_bacen.index = df_bacen.index.tz_localize(None)
+
+    serie_selic = df_bacen['taxa_cdi'].ffill().fillna(0.0)
+
+    # Checagem defensiva: se a média for maior que 1.0, a taxa é anualizada (% a.a.)
+    if serie_selic.mean() > 1.0:
+        # Se for série em % a.a. (ex: 10.75), converte para taxa unitária diária (base 252)
+        selic_diaria_unitaria = ((1 + serie_selic / 100.0) ** (1 / 252)) - 1
+    else:
+        # Se for série diária em % ao dia (ex: 0.0405), apenas divide por 100
+        selic_diaria_unitaria = serie_selic / 100.0
+
+    cdi_alinhado = selic_diaria_unitaria.reindex(retornos_sinal.index).ffill().fillna(0.0)
     
     retornos_sinal["CDI"] = cdi_alinhado
     retornos_execucao["CDI"] = cdi_alinhado
 
-    return retornos_sinal, retornos_execucao, dados_adj.columns.tolist(), dados_adj.columns.tolist() + ['CDI']
+    ativos_risco = [col for col in dados_adj.columns.tolist() if col != "CDI"]
+    colunas_operacao = ativos_risco + ["CDI"]
 
+    return retornos_sinal, retornos_execucao, ativos_risco, colunas_operacao
 
 
 def pipeline_returns_xx(tickers, BASE_DIR):

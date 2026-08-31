@@ -52,7 +52,7 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
     portfolio_global = Portfolio(capital_inicial, colunas_operacao)
     carteira_pendente_acumulada=None
     carteira_acumulada = "100_CDI"
-    ano_fim_dados = int(df_features.index.year.max() -1) #tiramos -1 pra nao pegar dados de 2026 
+    ano_fim_dados = min(int(df_features.index.year.max()), 2025) #tiramos -1 pra nao pegar dados de 2026 
 
     matriz_slippage_real = matriz_slippage_dinamico(retornos_sinal, janela_vol=tempo_regime,  
                                                     slippage_base=custo_slippage, multiplicador_estresse=2.0, slippage_maximo=0.05)
@@ -99,7 +99,8 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
             alpha_ema=alpha_ema,
             limite_min_por_ativo=limite_min_por_ativo,
             aliquota_cdi=aliquota_cdi,
-            anos_memoria=anos_memoria_treino
+            anos_memoria=anos_memoria_treino,
+            capital_inicial=capital_inicial
         )
 
         carteira_acumulada = cart_atual_ac
@@ -110,7 +111,7 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
         retornos_bench_hibrido = np.array([d['Retorno_Benchmark_Hibrido'] for d in logs_backtest])
         retorno_bench_dinamico = np.array([d['Retorno_Benchmark_Hibrido_Dinamico'] for d in logs_backtest])
 
-        rf_medio_diario = df_teste_acoes["CDI"].mean()
+        rf_medio_diario = df_teste_acoes["CDI"].mean() if "CDI" in df_teste_acoes.columns else 0.0004
 
         exposicoes_diarias = [d["Capital_Acoes"] / d["Patrimonio"] for d in logs_backtest if d["Patrimonio"] > 0]
         exposicao_media_acoes = np.mean(exposicoes_diarias) if len(exposicoes_diarias) > 0 else 0.0
@@ -137,13 +138,13 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
             'Composicao_Est_0': comp_0, 'Composicao_Est_1': comp_1, 'Composicao_Est_2': comp_2, 'Composicao_Est_3': comp_3,
             'Exposicao_Media_Acoes': round(exposicao_media_acoes, 4),
             'Carrego_Medio_CDI': round(1 - exposicao_media_acoes, 4),
-            'Retorno_Teste_Modelo': round(np.prod(1 + retornos_modelo) - 1, 2),
-            'Retorno_Teste_Ibov': round(np.prod(1 + retornos_bench) - 1, 2),
-            'Retorno_Teste_Bench_Hibrido': round(np.prod(1 + retornos_bench_hibrido) -1, 2),
-            "Retorno_Teste_Bench_Dinamico": round(np.prod(1 + retorno_bench_dinamico) - 1, 2),
-            'Alpha_Rodada': round((np.prod(1 + retornos_modelo) - 1) - (np.prod(1 + retorno_bench_dinamico) - 1), 2),
-            'CAGR': round(cagr_m, 2), 'Volatilidade': round(vol_m, 2), 'Sharpe': round(sharpe_m, 2),
-            'Sortino': round(sortino_m, 2), 'Max_Drawdown': round(dd_m, 2), 'Calmar': round(calmar_m, 2),
+            'Retorno_Teste_Modelo': (np.prod(1 + retornos_modelo) - 1),
+            'Retorno_Teste_Ibov': (np.prod(1 + retornos_bench) - 1),
+            'Retorno_Teste_Bench_Hibrido': (np.prod(1 + retornos_bench_hibrido) -1),
+            "Retorno_Teste_Bench_Dinamico": (np.prod(1 + retorno_bench_dinamico) - 1),
+            'Alpha_Rodada': (np.prod(1 + retornos_modelo) - 1) - (np.prod(1 + retorno_bench_dinamico) - 1),
+            'CAGR': cagr_m, 'Volatilidade': vol_m, 'Sharpe': sharpe_m,
+            'Sortino': sortino_m, 'Max_Drawdown': dd_m, 'Calmar': calmar_m,
             "Mapa_Risco": brain.mapa_risco
         })
 
@@ -155,13 +156,38 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
     # ==========================================================
     # CONVERSÃO DOS 5 DATAINFRAMES
     # ==========================================================
-    df_resultado = pd.DataFrame(historico["backtest"]).set_index('Data') if historico["backtest"] else pd.DataFrame()
-    df_rodadas = pd.DataFrame(historico["rodadas"]) if historico["rodadas"] else pd.DataFrame()
-    df_recompensas = pd.DataFrame(historico["recompensas"]) if historico["recompensas"] else pd.DataFrame()
-    df_carteiras = pd.DataFrame(historico["carteiras"]) if historico["carteiras"] else pd.DataFrame()
-    df_pesos = pd.DataFrame(historico["pesos"]).set_index('Data') if historico["pesos"] else pd.DataFrame()
+    print("3. Finalizando Walk-Forward e consolidando DataFrames...")
+    
+    # DF 1: Métricas consolidadas por rodada/janela de teste
+    df_rodadas = pd.DataFrame(historico["rodadas"])
+    
+    # DF 2: Evolução patrimonial diária completa do Backtest
+    df_backtest_diario = pd.DataFrame(historico["backtest"])
+    if not df_backtest_diario.empty:
+        df_backtest_diario['Data'] = pd.to_datetime(df_backtest_diario['Data'])
+        df_backtest_diario.set_index('Data', inplace=True)
+        
+    # DF 3: Histórico de alocação de pesos por ativo/ticker
+    df_pesos_historicos = pd.DataFrame(historico["pesos"])
+    if not df_pesos_historicos.empty:
+        df_pesos_historicos['Data'] = pd.to_datetime(df_pesos_historicos['Data'])
+        df_pesos_historicos.set_index('Data', inplace=True)
+        # Preenche com 0.0 os períodos onde ativos específicos não estavam na carteira
+        df_pesos_historicos = df_pesos_historicos.fillna(0.0)
 
-    return df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos
+    # DF 4: Logs detalhados de transição de carteiras/estresses
+    df_logs_carteiras = pd.DataFrame(historico["carteiras"])
+    
+    # DF 5: Resumo agregado de métricas de performance do ecossistema
+    performance_total = {
+         "CAGR_Total": cagr(df_backtest_diario["Retorno_Modelo"].values) if not df_backtest_diario.empty else 0,
+         "Sharpe_Total": sharpe(df_backtest_diario["Retorno_Modelo"].values, df_backtest_diario["CDI"].mean() if "CDI" in df_backtest_diario.columns else 0.0004) if not df_backtest_diario.empty else 0,
+         "Max_Drawdown_Total": max_drawdown(df_backtest_diario["Retorno_Modelo"].values) if not df_backtest_diario.empty else 0,
+         "Volatilidade_Total": vol(df_backtest_diario["Retorno_Modelo"].values) if not df_backtest_diario.empty else 0
+     }
+    df_metricas_resumo = pd.DataFrame([performance_total])
+
+    return df_rodadas, df_backtest_diario, df_pesos_historicos, df_logs_carteiras, df_metricas_resumo
 
 
         

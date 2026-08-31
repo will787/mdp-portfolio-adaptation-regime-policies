@@ -40,136 +40,258 @@ BASE_DIR = try_read_dir()
 features = [
         'ibovespa_br_returns', 'ibovespa_br_momentum', 'ibovespa_br_zscore',
         'vix_zscore', 'petro_brent_zscore', 'risco_brasil_zscore',
-        'shanghai_china_pct_change_lag_1m', 's&p500_eua_pct_change_lag_1m', 
+        'shanghai_china_zscore', 's&p500_eua_zscore',
         'inflacao_mensal_pct_change_lag_1m', 'taxa_selic_zscore',
-        'dolar_cambio_livre_p_tax_zscore', 'iene_cambio_livre_zscore' 
+        'dolar_cambio_livre_p_tax_zscore', 'euro_cambio_livre_zscore', 'expectativa_selic_1y_zscore'
 ]
 
 arquivo = BASE_DIR / 'data/gold/macro_features_hmm.parquet'
 print(f"Arquivo Gold: {arquivo}")
 df_features = build_feature_store(arquivo, features, start_date='2002-08-31', end_date='2026-03-01', name_feature_store='features_model')
 
+
 tickers = [
-    # Bancos & Serviços Financeiros
-    'ITUB4.SA',
-    'ITSA4.SA',
-    'BBDC4.SA',
-    'BBDC3.SA',
-    'BBAS3.SA',
-    'BPAC11.SA',
-    'SANB11.SA',
-    'ABCB4.SA',
-    'BPAN4.SA',
-    'B3SA3.SA',
-    'BBSE3.SA',
-    'CXSE3.SA',
-    'PSSA3.SA',
-    'IRBR3.SA',
-    # Petróleo, Gás & Petroquímica
-    'PETR4.SA',
-    'PETR3.SA',
-    'PRIO3.SA',
-    'BRAV3.SA',  # ex-RRRP3 / 3R + Enauta
-    'RECV3.SA',
-    'ENEV3.SA',
-    'VBBR3.SA',  # Vibra
-    'UGPA3.SA',  # Ultrapar
-    'BRKM5.SA',
-    'UNIP6.SA',
-    # Mineração, Siderurgia & Papel/Celulose
-    'VALE3.SA',
-    'CSNA3.SA',
-    'USIM5.SA',
-    'GGBR4.SA',
-    'GOAU4.SA',
-    'CMIN3.SA',
-    'BRAP4.SA',
-    'AURA33.SA',
-    'SUZB3.SA',
-    'KLBN11.SA',
-    'KLBN4.SA',
-    # Energia Elétrica & Saneamento
-    'EQTL3.SA',
-    'CMIG4.SA',
-    'TAEE11.SA',
-    'CPFE3.SA',
-    'EGIE3.SA',
-    'SBSP3.SA',
-    'CSMG3.SA',
-    'SAPR11.SA',  # Sanepar
-    'CPLE6.SA',
-    'CPLE3.SA',
-    'TRPL4.SA',
-    'ISAE4.SA',
-    'ALUP11.SA',
-    'ELET3.SA',
-    'ELET6.SA',
-    'LIGT3.SA',
-    # Varejo, Consumo & Saúde
-    'ABEV3.SA',
-    'RADL3.SA',  # Raia Drogasil
-    'ASAI3.SA',  # Assaí
-    'CRFB3.SA',  # Carrefour
-    'NTCO3.SA',  # Natura
-    'HYPE3.SA',  # Hypera
-    'LREN3.SA',
-    'VIVA3.SA',
-    'MGLU3.SA',
-    'BHIA3.SA',
-    'AMER3.SA',
-    'PCAR3.SA',
-    'LJQQ3.SA',
-    'CVCB3.SA',
-    'AZZA3.SA',  # ex-ARZZ3 / Arezzo + Soma
-    'SMFT3.SA',  # Smart Fit
-    'RDOR3.SA',
-    'HAPV3.SA',
-    'FLRY3.SA',
-    # Bens de Capital, Indústria & Tecnologia
-    'WEGE3.SA',
-    'EMBR3.SA',
-    'TOTS3.SA',
-    'POSI3.SA',
-    'LWSA3.SA',
-    'INTB3.SA',  # Intelbras
-    'KEPL3.SA',
-    'FRAS3.SA',
-    'ROMI3.SA',
-    'POMO4.SA',  # Marcopolo
-    'GGPS3.SA',  # GPS
-    'STBP3.SA',  # Santos Brasil
-    # Logística & Transporte
-    'RAIL3.SA',
-    'ECOR3.SA',
-    'CCRO3.SA',
-    'RENT3.SA',
-    'MOVI3.SA',
-    'AZUL4.SA',
-    'GOLL4.SA',
-    # Imobiliário & Construção
-    'MULT3.SA',
-    'ALOS3.SA',
-    'IGTI11.SA',
-    'CYRE3.SA',
-    'MRVE3.SA',
-    'EZTC3.SA',
-    'MDNE3.SA',
-    'CURY3.SA',  # Cury
-    'DIRR3.SA',  # Direcional
-    'CSUD3.SA',
-    # Agronegócio & Proteína
-    'JBSS3.SA',
-    'BRFS3.SA',
-    'MRFG3.SA',
-    'SLCE3.SA',
-    'SMTO3.SA',
-    'AGRO3.SA',
-    'SOJA3.SA',
-    # Educação & Outros
-    'COGN3.SA',
-    'YDUQ3.SA',
-    'ANIM3.SA',
-    'OIBR3.SA',
+
+# Bancos & Serviços Financeiros
+
+'ITUB4.SA',
+
+'ITSA4.SA',
+
+'BBDC4.SA',
+
+'BBDC3.SA',
+
+'BBAS3.SA',
+
+'BPAC11.SA',
+
+'SANB11.SA',
+
+'ABCB4.SA',
+
+'BPAN4.SA',
+
+'B3SA3.SA',
+
+'BBSE3.SA',
+
+'CXSE3.SA',
+
+'PSSA3.SA',
+
+'IRBR3.SA',
+
+# Petróleo, Gás & Petroquímica
+
+'PETR4.SA',
+
+'PETR3.SA',
+
+'PRIO3.SA',
+
+'BRAV3.SA', # ex-RRRP3 / 3R + Enauta
+
+'RECV3.SA',
+
+'ENEV3.SA',
+
+'VBBR3.SA', # Vibra
+
+'UGPA3.SA', # Ultrapar
+
+'BRKM5.SA',
+
+'UNIP6.SA',
+
+# Mineração, Siderurgia & Papel/Celulose
+
+'VALE3.SA',
+
+'CSNA3.SA',
+
+'USIM5.SA',
+
+'GGBR4.SA',
+
+'GOAU4.SA',
+
+'CMIN3.SA',
+
+'BRAP4.SA',
+
+'AURA33.SA',
+
+'SUZB3.SA',
+
+'KLBN11.SA',
+
+'KLBN4.SA',
+
+# Energia Elétrica & Saneamento
+
+'EQTL3.SA',
+
+'CMIG4.SA',
+
+'TAEE11.SA',
+
+'CPFE3.SA',
+
+'EGIE3.SA',
+
+'SBSP3.SA',
+
+'CSMG3.SA',
+
+'SAPR11.SA', # Sanepar
+
+'CPLE6.SA',
+
+'CPLE3.SA',
+
+'TRPL4.SA',
+
+'ISAE4.SA',
+
+'ALUP11.SA',
+
+'ELET3.SA',
+
+'ELET6.SA',
+
+'LIGT3.SA',
+
+# Varejo, Consumo & Saúde
+
+'ABEV3.SA',
+
+'RADL3.SA', # Raia Drogasil
+
+'ASAI3.SA', # Assaí
+
+'CRFB3.SA', # Carrefour
+
+'NTCO3.SA', # Natura
+
+'HYPE3.SA', # Hypera
+
+'LREN3.SA',
+
+'VIVA3.SA',
+
+'MGLU3.SA',
+
+'BHIA3.SA',
+
+'AMER3.SA',
+
+'PCAR3.SA',
+
+'LJQQ3.SA',
+
+'CVCB3.SA',
+
+'AZZA3.SA', # ex-ARZZ3 / Arezzo + Soma
+
+'SMFT3.SA', # Smart Fit
+
+'RDOR3.SA',
+
+'HAPV3.SA',
+
+'FLRY3.SA',
+
+# Bens de Capital, Indústria & Tecnologia
+
+'WEGE3.SA',
+
+'EMBR3.SA',
+
+'TOTS3.SA',
+
+'POSI3.SA',
+
+'LWSA3.SA',
+
+'INTB3.SA', # Intelbras
+
+'KEPL3.SA',
+
+'FRAS3.SA',
+
+'ROMI3.SA',
+
+'POMO4.SA', # Marcopolo
+
+'GGPS3.SA', # GPS
+
+'STBP3.SA', # Santos Brasil
+
+# Logística & Transporte
+
+'RAIL3.SA',
+
+'ECOR3.SA',
+
+'CCRO3.SA',
+
+'RENT3.SA',
+
+'MOVI3.SA',
+
+'AZUL4.SA',
+
+'GOLL4.SA',
+
+# Imobiliário & Construção
+
+'MULT3.SA',
+
+'ALOS3.SA',
+
+'IGTI11.SA',
+
+'CYRE3.SA',
+
+'MRVE3.SA',
+
+'EZTC3.SA',
+
+'MDNE3.SA',
+
+'CURY3.SA', # Cury
+
+'DIRR3.SA', # Direcional
+
+'CSUD3.SA',
+
+# Agronegócio & Proteína
+
+'JBSS3.SA',
+
+'BRFS3.SA',
+
+'MRFG3.SA',
+
+'SLCE3.SA',
+
+'SMTO3.SA',
+
+'AGRO3.SA',
+
+'SOJA3.SA',
+
+# Educação & Outros
+
+'COGN3.SA',
+
+'YDUQ3.SA',
+
+'ANIM3.SA',
+
+'OIBR3.SA',
+
 ]
 
 tickers_unicos = list(dict.fromkeys(tickers))
@@ -194,14 +316,14 @@ retornos_execucao = retornos_execucao.loc[datas_comuns].sort_index()
 
 # %%
 
-df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forward_motor(
+df_rodadas, df_resultado ,df_pesos_historicos, df_carteiras, df_metricas_resumo = run_walk_forward_motor(
     df_features=df_features, 
     retornos_sinal=retornos_sinal,         # Usado no Treino / HMM / Bellman / Scores
     retornos_execucao=retornos_execucao,   # Usado estritamente no Teste Diário físico
     acoes_disponiveis=ativos_risco, 
     colunas_hmm=df_features.columns, 
     colunas_operacao=colunas_operacao,
-    ano_inicio_operacao=2015, 
+    ano_inicio_operacao=2010, 
     janela_teste=1, 
     metrica_otimizacao='adaptativo',
     anos_memoria_treino=4, 
@@ -216,6 +338,19 @@ df_resultado, df_rodadas, df_recompensas, df_carteiras, df_pesos = run_walk_forw
     alpha_ema=0.20,
     margem_troca=0.20
 )
+
+print(df_rodadas[[
+    'Rodada_Teste', 'Retorno_Teste_Modelo', 'Retorno_Teste_Ibov', 
+    'Retorno_Teste_Bench_Dinamico', 'Alpha_Rodada', 'Sharpe', 'Max_Drawdown'
+]])
+
+# 2. Retorno total acumulado do modelo vs Benchmark
+retorno_total_modelo = (1 + df_resultado['Retorno_Modelo']).prod() - 1
+retorno_total_cdi = (1 + df_resultado['Retorno_Benchmark_Hibrido']).prod() - 1
+
+print(f"\nResultado Acumulado (2015 - 2025):")
+print(f"K-NESIAN HMM: {retorno_total_modelo:.2%}")
+print(f"CDI Acumulado: {retorno_total_cdi:.2%}")
 # %%
 vis.plot_full_history(df_resultado, ano_inicio=2010)
 vis.plot_regimes_historicos(df_resultado)
@@ -230,9 +365,8 @@ vis.plot_dashboard_rodadas(df_rodadas)
 
 df_resultado.to_csv('df_resultados.csv')
 df_rodadas.to_csv('df_rodadas.csv')
-df_recompensas.to_csv('df_recompensas.csv')
 df_carteiras.to_csv('df_carteiras.csv')
-df_pesos.to_csv('df_pesos.csv')
+df_pesos_historicos.to_csv('df_pesos.csv')
 
 # %%
 import plotly.graph_objects as go
@@ -1120,4 +1254,82 @@ print(f't-statistic: {t_stat:.2f}')
 print(f'p-value: {p_val:.6e} (Significativo: {p_val < 0.05})')
 print(f'Information Ratio: {ir:.2f}')
 
+# %%
+
+print(df_resultado[['Retorno_Modelo','Retorno_Benchmark','Retorno_Benchmark_Hibrido_Dinamico']].head(10))
+# %%
+def calcular_decomposicao_alpha(df_resultado):
+    """
+    Decompõe o retorno diário do modelo em:
+    1. Efeito Market Timing (Exposição a Risco vs CDI)
+    2. Efeito Stock Picking (Seleção de Ações vs Ibov)
+    3. Efeito Fricção (Custos de Execução e D+2)
+    """
+    df = df_resultado.copy()
+    
+    # Exposição do modelo e do benchmark (ex: bench 100% CDI -> w_acoes_bench = 0.0)
+    w_acoes_mod = df['Capital_Acoes'] / df['Patrimonio']
+    w_acoes_bench = 0.0  # ou 0.5 se benchmark 50/50
+    
+    r_ibov = df['Retorno_Benchmark']
+    r_cdi = df['Retorno_Taxa_CDI'] if 'Retorno_Taxa_CDI' in df.columns else df['CDI']
+    
+    # Retorno médio ponderado da cesta de ações isolada
+    # (Evita divisão por zero quando o modelo está 100% CDI)
+    r_cesta_acoes = np.where(w_acoes_mod > 0, (df['Retorno_Modelo'] - (1 - w_acoes_mod) * r_cdi) / np.maximum(w_acoes_mod, 1e-6), 0.0)
+    
+    # 1. Market Timing
+    df['Efeito_Timing'] = (w_acoes_mod - w_acoes_bench) * (r_ibov - r_cdi)
+    
+    # 2. Stock Picking
+    df['Efeito_Picking'] = w_acoes_mod * (r_cesta_acoes - r_ibov)
+    
+    # 3. Retornos Acumulados dos Fatores
+    timing_total = df['Efeito_Timing'].sum()
+    picking_total = df['Efeito_Picking'].sum()
+    
+    return pd.DataFrame({
+        'Fator': ['Market Timing (Macro/HMM)', 'Stock Picking (MDP/Seleção)', 'Retorno Total Acumulado'],
+        'Contribuição Linear Estimada': [f"{timing_total:.2%}", f"{picking_total:.2%}", f"{(df['Retorno_Modelo'].sum()):.2%}"]
+    })
+# %%
+calcular_decomposicao_alpha(df_resultado=df_resultado)
+# %%
+
+import pandas as pd
+import numpy as np
+
+def gerar_relatorio_decomposicao(df_resultado):
+    df = df_resultado.copy()    
+    # Retornos Totais
+    r_mod = (1 + df['Retorno_Modelo']).prod() - 1
+    r_ibov = (1 + df['Retorno_Benchmark']).prod() - 1
+    r_din = (1 + df['Retorno_Benchmark_Hibrido_Dinamico']).prod() - 1
+    
+    # Extração CDI
+    w = df['Exposicao_Acoes'].values
+    r_cdi_dia = np.where(w < 0.99, (df['Retorno_Benchmark_Hibrido_Dinamico'] - w * df['Retorno_Benchmark']) / (1 - w + 1e-6), 0.0004)
+    r_cdi = (1 + r_cdi_dia).prod() - 1
+
+    tabela = pd.DataFrame({
+        'Dimensão / Fator': [
+            'Retorno Bruto Total',
+            'Custo de Oportunidade (CDI)',
+            'Alpha Total Gerado',
+            '-> Parcela de Market Timing (HMM)',
+            '-> Parcela de Stock Picking (MDP)'
+        ],
+        'Rentabilidade Acumulada': [
+            f"{r_mod:.2%}", f"{r_cdi:.2%}", f"{(r_mod - r_cdi):.2%}",
+            f"{(r_din - r_cdi):.2%}", f"{(r_mod - r_din):.2%}"
+        ],
+        'Participação no Alpha': [
+            '-', '-', '100.0%',
+            f"{((r_din - r_cdi) / (r_mod - r_cdi)):.1%}",
+            f"{((r_mod - r_din) / (r_mod - r_cdi)):.1%}"
+        ]
+    })
+    return tabela
+
+print(gerar_relatorio_decomposicao(df_resultado))
 # %%
