@@ -41,8 +41,9 @@ features = [
         'ibovespa_br_returns', 'ibovespa_br_momentum', 'ibovespa_br_zscore',
         'vix_zscore', 'petro_brent_zscore', 'risco_brasil_zscore',
         'shanghai_china_zscore', 's&p500_eua_zscore',
-        'inflacao_mensal_pct_change_lag_1m', 'taxa_selic_zscore',
-        'dolar_cambio_livre_p_tax_zscore', 'euro_cambio_livre_zscore', #'expectativa_selic_1y_zscore'
+        'inflacao_mensal_pct_change_lag_1m', 'taxa_selic_zscore', #'desemprego_mensal_pct_change_lag_3m', 
+        'dolar_cambio_livre_p_tax_zscore', 'euro_cambio_livre_zscore', 'expectativa_selic_1y_zscore',
+
 ]
 
 arquivo = BASE_DIR / 'data/gold/macro_features_hmm.parquet'
@@ -197,7 +198,16 @@ tickers = [
 'COGN3.SA', 'YDUQ3.SA', 'ANIM3.SA', 'OIBR3.SA'
 ]
 
-tickers_unicos = list(dict.fromkeys(tickers))
+ativos_barbell = [
+    # Bancos & Finanças
+    'ITUB4.SA', 'ITSA4.SA', 'BBDC4.SA', 'BBDC3.SA', 'BBAS3.SA', 'BPAC11.SA', 'SANB11.SA', 'ABCB4.SA',
+    # Petróleo & Mineração/Papel
+    'PETR4.SA', 'PETR3.SA', 'PRIO3.SA', 'BRAV3.SA', 'VALE3.SA', 'CSNA3.SA', 'GGBR4.SA', 'SUZB3.SA', 'KLBN11.SA',
+    # Agronegócio
+    'JBSS3.SA', 'BRFS3.SA', 'SLCE3.SA'
+]
+
+tickers_unicos = list(dict.fromkeys(ativos_barbell))
 
 #caminho = BASE_DIR / 'data/stocks/stocks_segmentos.csv'
 #df = pd.read_csv(caminho, sep=',')
@@ -226,7 +236,7 @@ df_rodadas, df_resultado ,df_pesos_historicos, df_carteiras, df_metricas_resumo 
     acoes_disponiveis=ativos_risco, 
     colunas_hmm=df_features.columns, 
     colunas_operacao=colunas_operacao,
-    ano_inicio_operacao=2015, 
+    ano_inicio_operacao=2020, 
     janela_teste=1, 
     metrica_otimizacao='adaptativo',
     anos_memoria_treino=4, 
@@ -242,7 +252,7 @@ df_rodadas, df_resultado ,df_pesos_historicos, df_carteiras, df_metricas_resumo 
     margem_troca=0.20
 )
 # %%
-vis.plot_full_history(df_resultado, ano_inicio=2010)
+vis.plot_full_history(df_resultado, ano_inicio=2007)
 vis.plot_regimes_historicos(df_resultado)
 vis.plot_heatmap_alpha_mensal(df_resultado)
 vis.analise_comparativa_benchmark_flag(df_resultado, df_features,flag_vline=1)
@@ -283,7 +293,7 @@ def plot_evolucao_exposicao_com_regimes(df_resultado):
         name='Caixa (CDI)',
         stackgroup='one',
         groupnorm='percent',
-        marker_color='rgba(230, 230, 230, 0.5)', # Cinza neutro
+        marker_color='rgba(230, 230, 230, 0.5)',
         line=dict(width=0.5)
     ))
     

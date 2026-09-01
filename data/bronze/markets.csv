@@ -1,4 +1,4 @@
-data,ibovespa_br,s&p500_eua,dax_alemanha,shanghai_china,nikkei_japao,merv_argentina,ftse_uk,vix,petro_brent,tesouro_eua10y,gas_natural_commodity,milho_commodity,acucar_commodity
+Date,ibovespa_br,s&p500_eua,dax_alemanha,shanghai_china,nikkei_japao,merv_argentina,ftse_uk,vix,petro_brent,tesouro_eua10y,gas_natural_commodity,milho_commodity,acucar_commodity
 2000-01-03,16930.0,1455.219970703125,6750.759765625,,,552.0,,24.209999084472656,,6.547999858856201,,,
 2000-01-04,15851.0,1399.4200439453125,6586.9501953125,1406.3709716796875,19002.859375,523.0,6665.89990234375,27.010000228881836,,6.485000133514404,,,
 2000-01-05,16245.0,1402.1099853515625,6502.06982421875,1409.6820068359375,18542.55078125,533.0,6535.89990234375,26.40999984741211,,6.598999977111816,,,

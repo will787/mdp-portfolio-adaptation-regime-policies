@@ -83,7 +83,7 @@ def get_finance_data(tickers, start_date, end_date):
                 auto_adjust=False
             )
             # pega fechamento
-            close_prices = df['Adj Close']
+            close_prices = df['Close']
             # renomeia série
             close_prices.name = ticker
             print(f"{ticker}: {len(close_prices)} observações.")

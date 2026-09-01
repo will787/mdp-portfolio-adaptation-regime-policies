@@ -28,10 +28,13 @@ def plot_full_history(df_resultado, ano_inicio=None):
 
     df['Acumulado_Benchmark_Dinamico'] = (1 + df['Retorno_Benchmark_Hibrido_Dinamico']).cumprod() - 1
 
+    df['Acumulado_CDI'] = (1 + df['Retorno_CDI']).cumprod() - 1
+
     for col in [
         'Acumulado_Modelo',
         'Acumulado_Benchmark_Hibrido',
-        'Acumulado_Benchmark_Dinamico'
+        'Acumulado_Benchmark_Dinamico',
+        'Acumulado_CDI'
     ]:
         df[col] *= 100
 
@@ -63,6 +66,14 @@ def plot_full_history(df_resultado, ano_inicio=None):
 
     fig.add_trace(go.Scatter(
         x=df.index,
+        y=df['Acumulado_CDI'],
+        mode='lines',
+        name='CDI (Risk-Free)',
+        line=dict(color='seagreen', width=2, dash='dot')
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df.index,
         y=df['Acumulado_Modelo'],
         mode='lines',
         name='K-nesian HMM',
@@ -72,6 +83,7 @@ def plot_full_history(df_resultado, ano_inicio=None):
     retorno_final_mod = df['Acumulado_Modelo'].iloc[-1]
     retorno_final_bench_hib = df['Acumulado_Benchmark_Hibrido'].iloc[-1]
     retorno_final_bench_hib_dinamico = df['Acumulado_Benchmark_Dinamico'].iloc[-1]
+    retorno_final_cdi = df['Acumulado_CDI'].iloc[-1]
     
     fig.add_annotation(
         x=df.index[-1], y=retorno_final_mod,
@@ -92,6 +104,13 @@ def plot_full_history(df_resultado, ano_inicio=None):
         text=f"Benchmark Dinâmico: {retorno_final_bench_hib_dinamico:.1f}%",
         showarrow=True, arrowhead=1, ax=-40, ay=-75,
         font=dict(color="darkorange", size=12)
+    )
+
+    fig.add_annotation(
+        x=df.index[-1], y=retorno_final_cdi,
+        text=f"CDI: {retorno_final_cdi:.1f}%",
+        showarrow=True, arrowhead=1, ax=40, ay=15,
+        font=dict(color="seagreen", size=12)
     )
 
     fig.update_layout(

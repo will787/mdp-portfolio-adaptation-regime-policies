@@ -161,10 +161,6 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
         historico["backtest"].extend(logs_backtest)
         historico["carteiras"].extend(logs_carteiras)
         historico["pesos"].extend([{"Data": d["Data"], **{k: v for k, v in d.items() if k in colunas_operacao}} for d in logs_backtest])
-    # ==========================================================
-    # CONVERSÃO DOS 5 DATAINFRAMES
-    # ==========================================================
-    print("3. Finalizando Walk-Forward e consolidando DataFrames...")
     
     # DF 1: Métricas consolidadas por rodada/janela de teste
     df_rodadas = pd.DataFrame(historico["rodadas"])
