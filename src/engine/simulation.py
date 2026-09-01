@@ -124,7 +124,8 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
         retorno_modelo_dia = (patrimonio_atual / patrimonio_anterior) - 1
 
         retorno_benchmark_dia = df_teste_acoes.iloc[i]["Retorno_Ibov"]
-        retorno_taxa_cdi = df_teste_acoes.iloc[i].get("CDI", 0.0)
+        raw_cdi = df_teste_acoes.iloc[i].get("CDI", 0.0)
+        retorno_taxa_cdi = (1 + raw_cdi / 100) ** (1 / 252) - 1 if raw_cdi > 0.005 else raw_cdi
 
 
         retorno_bench_hibrido_dia = benchmark_hibrido(retorno_benchmark_dia, retorno_taxa_cdi)
@@ -166,10 +167,6 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
 
         capital_clearing = resultado['snapshot']['Patrimonio'] - resultado['snapshot']['CDI'] - resultado['snapshot']['Capital_Acoes']
 
-        pesos_alvo_formatados = {
-            f'Alvo_{ativo}': round(peso,4) for ativo,peso in pesos_sinteticos.items()
-        }
-
         logs_backtest.append({
             "Data": data_atual,
             "Estado_HMM": estado_hmm_atual,
@@ -191,6 +188,7 @@ def simular_janela_teste(portfolio, df_teste_acoes, df_features_teste, brain, co
             "Capital_Acoes": round(resultado['snapshot']['Capital_Acoes'], 4),
             "Exposicao_Acoes": round(portfolio.exposicao(), 4),
             "Retorno_Modelo": retorno_modelo_dia,
+            "Retorno_CDI": retorno_taxa_cdi,
             "Retorno_Benchmark": retorno_benchmark_dia,
             "Retorno_Benchmark_Hibrido": retorno_bench_hibrido_dia,
             "Retorno_Benchmark_Hibrido_Dinamico": retorno_bench_hibrido_dinamico,

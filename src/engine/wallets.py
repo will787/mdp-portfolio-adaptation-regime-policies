@@ -215,7 +215,7 @@ def otimizar_carteira_por_regime(retornos_estado, taxa_livre_risco_diaria, metri
     )
 
     fator_alocacao_bolsa = min(teto_bolsa, fator_alocacao_bolsa)
-    pesos_finais_acoes = pesos * fator_alocacao_bolsa
+    pesos_finais_acoes = pesos #* fator_alocacao_bolsa
 
     carteira_otima = pesos_finais_acoes.to_dict()
     peso_total_alocado = pesos_finais_acoes.sum()

@@ -35,7 +35,7 @@ class MarketBrain:
         self.politica_otima = {}
         self.X_treino_scaled = None
         self.relatorios_regimes = None
-        self.metricas_regime = {0: "sharpe",1: "sortino",2: "cvar",3: "min_vol"}
+        self.metricas_regime = {0: "omega",1: "sortino",2: "cvar",3: "min_vol"}
         self.regimes = self.criar_regimes()
 
     def treinar_e_otimizar(self, dados_treino_hmm, retornos_sinal, colunas_hmm, colunas_operacao,
@@ -179,21 +179,21 @@ class MarketBrain:
         df['estado'] = estados_preditos
 
         estatisticas = df.groupby("estado").agg({
-            #"ibovespa_br_returns": "mean",
+            "ibovespa_br_returns": "mean",
             "vix_zscore": "mean",
             "risco_brasil_zscore": "mean",
             "dolar_cambio_livre_p_tax_zscore": "mean",
-            "expectativa_selic_1y_zscore": "mean"
+            "petro_brent_zscore": "mean"
         })
 
 
         score = (
-            #- 0.30 * estatisticas["ibovespa_br_returns"] +
-            0.30 * estatisticas["vix_zscore"] +
-            0.30 * estatisticas["risco_brasil_zscore"] +
-            0.25 * estatisticas['expectativa_selic_1y_zscore'] +
-            0.15 * estatisticas['dolar_cambio_livre_p_tax_zscore'] 
-            )
+            -0.30 * estatisticas["ibovespa_br_returns"] +
+            0.25 * estatisticas["vix_zscore"] +
+            0.20 * estatisticas["risco_brasil_zscore"] +
+            0.15 * estatisticas['dolar_cambio_livre_p_tax_zscore'] +
+            0.05 * estatisticas["petro_brent_zscore"]
+        )
 
         ranking = score.rank(method='first').astype(int) - 1
 

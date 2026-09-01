@@ -40,8 +40,6 @@ def matriz_slippage_dinamico(retornos_sinal: pd.DataFrame, janela_vol: int = 21,
     return matriz_slippage
 
 
-
-
 def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes_disponiveis, colunas_hmm, colunas_operacao, 
                            ano_inicio_operacao=2005, janela_teste=1, metrica_otimizacao='adaptativo', 
                            anos_memoria_treino=10, tempo_regime=21, limite_max_por_ativo=0.08, limite_min_por_ativo=0.03, numero_ativos=20,
@@ -59,7 +57,7 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
 
 
     for ano_teste_inicio in range(ano_inicio_operacao, ano_fim_dados + 1, janela_teste):
-        ano_teste_fim = ano_teste_inicio + (janela_teste - 1)
+        ano_teste_fim = ano_teste_inicio + (janela_teste -1) # - 1
 
         if ano_teste_fim > ano_fim_dados:
             break
@@ -72,12 +70,22 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
         if len (dados_teste_hmm) < 2: 
             continue
 
+        retorno_treino_janela = retornos_sinal.loc[dados_treino_hmm.index]
+
+        limite_dados_minimos = int(len(dados_treino_hmm) * 0.80)
+        ativos_elegiveis = [
+            col for col in colunas_operacao
+            if col != 'CDI' and retorno_treino_janela[col].dropna().shape[0] >= limite_dados_minimos
+        ]
+
+        colunas_operacao_janela = ativos_elegiveis + ['CDI']
+
         brain = MarketBrain()
-        brain.treinar_e_otimizar(dados_treino_hmm, retornos_sinal, colunas_hmm, colunas_operacao,
+        brain.treinar_e_otimizar(dados_treino_hmm, retornos_sinal[colunas_operacao_janela], colunas_hmm, colunas_operacao_janela,
                                 tempo_regime, metrica_otimizacao, limite_max_por_ativo, limite_min_por_ativo,
                                 numero_ativos, matriz_transicao=matriz_transicao)
 
-
+        
         df_teste_acoes = retornos_execucao.loc[dados_teste_hmm.index].copy()
         df_teste_acoes = df_teste_acoes.join(df_features['ibovespa_br_returns'].rename('Retorno_Ibov'), how='inner')
 
@@ -89,7 +97,7 @@ def run_walk_forward_motor(df_features, retornos_sinal, retornos_execucao, acoes
             df_features_teste=dados_teste_hmm,
             brain=brain, 
             colunas_hmm=colunas_hmm, 
-            colunas_operacao=colunas_operacao, 
+            colunas_operacao=colunas_operacao_janela, 
             tempo_regime=tempo_regime, 
             custo_corretagem=custo_corretagem, 
             custo_slippage=slippage_janela_teste,
