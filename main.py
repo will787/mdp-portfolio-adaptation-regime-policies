@@ -42,8 +42,7 @@ features = [
         'vix_zscore', 'petro_brent_zscore', 'risco_brasil_zscore',
         'shanghai_china_zscore', 's&p500_eua_zscore',
         'inflacao_mensal_pct_change_lag_1m', 'taxa_selic_zscore',
-        'dolar_cambio_livre_p_tax_zscore', 'euro_cambio_livre_zscore',
-        'expectativa_selic_1y_zscore'
+        'dolar_cambio_livre_p_tax_zscore', 'euro_cambio_livre_zscore', #'expectativa_selic_1y_zscore'
 ]
 
 arquivo = BASE_DIR / 'data/gold/macro_features_hmm.parquet'
@@ -177,122 +176,25 @@ tickers = [
 
 'HYPE3.SA', # Hypera
 
-'LREN3.SA',
-
-'VIVA3.SA',
-
-'MGLU3.SA',
-
-'BHIA3.SA',
-
-'AMER3.SA',
-
-'PCAR3.SA',
-
-'LJQQ3.SA',
-
-'CVCB3.SA',
-
-'AZZA3.SA', # ex-ARZZ3 / Arezzo + Soma
-
-'SMFT3.SA', # Smart Fit
-
-'RDOR3.SA',
-
-'HAPV3.SA',
-
-'FLRY3.SA',
+'LREN3.SA', 'VIVA3.SA', 'MGLU3.SA', 'BHIA3.SA', 'AMER3.SA', 'PCAR3.SA', 'LJQQ3.SA', 'CVCB3.SA', 'AZZA3.SA', 'SMFT3.SA', 'RDOR3.SA', 'HAPV3.SA', 'FLRY3.SA',
 
 # Bens de Capital, Indústria & Tecnologia
 
-'WEGE3.SA',
-
-'EMBR3.SA',
-
-'TOTS3.SA',
-
-'POSI3.SA',
-
-'LWSA3.SA',
-
-'INTB3.SA', # Intelbras
-
-'KEPL3.SA',
-
-'FRAS3.SA',
-
-'ROMI3.SA',
-
-'POMO4.SA', # Marcopolo
-
-'GGPS3.SA', # GPS
-
-'STBP3.SA', # Santos Brasil
+'WEGE3.SA', 'EMBR3.SA', 'TOTS3.SA', 'POSI3.SA', 'LWSA3.SA', 'INTB3.SA', 'KEPL3.SA', 'FRAS3.SA', 'ROMI3.SA', 'POMO4.SA',  'GGPS3.SA', 'STBP3.SA',
 
 # Logística & Transporte
 
-'RAIL3.SA',
-
-'ECOR3.SA',
-
-'CCRO3.SA',
-
-'RENT3.SA',
-
-'MOVI3.SA',
-
-'AZUL4.SA',
-
-'GOLL4.SA',
+'RAIL3.SA', 'ECOR3.SA', 'CCRO3.SA', 'RENT3.SA', 'MOVI3.SA', 'AZUL4.SA', 'GOLL4.SA',
 
 # Imobiliário & Construção
 
-'MULT3.SA',
-
-'ALOS3.SA',
-
-'IGTI11.SA',
-
-'CYRE3.SA',
-
-'MRVE3.SA',
-
-'EZTC3.SA',
-
-'MDNE3.SA',
-
-'CURY3.SA', # Cury
-
-'DIRR3.SA', # Direcional
-
-'CSUD3.SA',
+'MULT3.SA', 'ALOS3.SA', 'IGTI11.SA', 'CYRE3.SA', 'MRVE3.SA', 'EZTC3.SA', 'MDNE3.SA', 'CURY3.SA', 'DIRR3.SA', 'CSUD3.SA',
 
 # Agronegócio & Proteína
-
-'JBSS3.SA',
-
-'BRFS3.SA',
-
-'MRFG3.SA',
-
-'SLCE3.SA',
-
-'SMTO3.SA',
-
-'AGRO3.SA',
-
-'SOJA3.SA',
+'JBSS3.SA','BRFS3.SA','MRFG3.SA','SLCE3.SA', 'SMTO3.SA', 'AGRO3.SA','SOJA3.SA',
 
 # Educação & Outros
-
-'COGN3.SA',
-
-'YDUQ3.SA',
-
-'ANIM3.SA',
-
-'OIBR3.SA',
-
+'COGN3.SA', 'YDUQ3.SA', 'ANIM3.SA', 'OIBR3.SA'
 ]
 
 tickers_unicos = list(dict.fromkeys(tickers))
